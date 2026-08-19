@@ -36,10 +36,32 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Cria um fetch personalizado para injetar o cabeçalho 'x-user-id' dinamicamente em todas as chamadas
+const customFetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  const headers = new Headers(init?.headers);
+  try {
+    const userRaw = localStorage.getItem('dnd_app_current_user');
+    if (userRaw) {
+      const user = JSON.parse(userRaw);
+      if (user && user.id) {
+        headers.set('x-user-id', user.id);
+      }
+    }
+  } catch (e) {
+    console.warn('Erro ao ler usuário no customFetch:', e);
+  }
+  return fetch(input, { ...init, headers });
+};
+
 // Cria e exporta o client do Supabase para ser usado em toda a aplicação
 export const supabase = createClient<Database>(
   isValidUrl ? supabaseUrl : 'https://sua-url-placeholder.supabase.co',
-  supabaseAnonKey || 'sua-chave-anon-placeholder'
+  supabaseAnonKey || 'sua-chave-anon-placeholder',
+  {
+    global: {
+      fetch: customFetch
+    }
+  }
 );
 
 export const isSupabaseConfigured = 

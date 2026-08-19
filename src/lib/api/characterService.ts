@@ -11,7 +11,24 @@ export function getLocalCharacters(): any[] {
     const raw = localStorage.getItem(LOCAL_STORAGE_CHARS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) {
+      let changed = false;
+      const migrated = parsed.map(c => {
+        if (c.user_id === 'admin-id-default') {
+          c.user_id = 'a0000000-0000-0000-0000-000000000001';
+          changed = true;
+        } else if (c.user_id === 'jogador-id-default') {
+          c.user_id = 'a0000000-0000-0000-0000-000000000002';
+          changed = true;
+        }
+        return c;
+      });
+      if (changed) {
+        saveLocalCharacters(migrated);
+      }
+      return migrated;
+    }
+    return [];
   } catch (e) {
     return [];
   }
@@ -24,6 +41,16 @@ export function saveLocalCharacters(chars: any[]): void {
     console.warn('Erro ao persistir personagens no localStorage:', e);
   }
 }
+
+const getCurrentUserId = (): string | null => {
+  try {
+    const raw = localStorage.getItem('dnd_app_current_user');
+    if (!raw) return null;
+    return JSON.parse(raw)?.id || null;
+  } catch (e) {
+    return null;
+  }
+};
 
 export function processCharacterRow(char: any): any {
   let goldNumber = char.gp || 0;
@@ -458,6 +485,7 @@ function createLocalCharacter(characterData: any): any {
 
   const localChar = {
     id: localId,
+    user_id: getCurrentUserId(),
     name: characterData.name || 'Herói',
     alignment: characterData.alignment || 'Neutro',
     level: characterData.level || 1,
@@ -525,27 +553,45 @@ const CHAR_SELECT_WITH_ATTACKS = '*, character_inventory(*, items(*)), character
 const CHAR_SELECT_SAFE = '*, character_inventory(*, items(*)), character_feats(*, feats(*)), character_spells(*, spells(*)), character_choices(*), character_classes(*, classes(*)), races(name), classes(name), backgrounds(name)';
 
 export async function getCharacters(): Promise<any[]> {
+  const currentUserId = getCurrentUserId();
+  if (!currentUserId) {
+    return [];
+  }
+
   if (!isSupabaseConfigured) {
-    return getLocalCharacters().map(processCharacterRow);
+    const allLocal = getLocalCharacters();
+    const filteredLocal = allLocal.filter(c => c.user_id === currentUserId || !c.user_id);
+    return filteredLocal.map(processCharacterRow);
   }
 
   try {
+    // Tenta primeiro filtrar pelo ID de usuário logado
     let res = await supabase
       .from('characters')
       .select(CHAR_SELECT_WITH_ATTACKS)
+      .eq('user_id', currentUserId)
       .order('created_at', { ascending: false });
 
-    if (res.error) {
+    if (res.error && res.error.message?.includes('user_id')) {
+      // Se der erro de coluna inexistente, faz a busca geral como fallback (sem quebrar)
+      res = await supabase
+        .from('characters')
+        .select(CHAR_SELECT_WITH_ATTACKS)
+        .order('created_at', { ascending: false });
+    } else if (res.error) {
       // Tenta sem a tabela character_attacks caso ela tenha sido excluída pelo usuário
       res = await supabase
         .from('characters')
         .select(CHAR_SELECT_SAFE)
+        .eq('user_id', currentUserId)
         .order('created_at', { ascending: false });
     }
 
     if (res.error) {
       console.warn('Erro ao buscar personagens no Supabase, usando backup local:', res.error);
-      return getLocalCharacters().map(processCharacterRow);
+      const allLocal = getLocalCharacters();
+      const filteredLocal = allLocal.filter(c => c.user_id === currentUserId || !c.user_id);
+      return filteredLocal.map(processCharacterRow);
     }
 
     const processed = (res.data || []).map(processCharacterRow);
@@ -567,7 +613,9 @@ export async function getCharacters(): Promise<any[]> {
     return uniqueProcessed;
   } catch (err) {
     console.warn('Falha de rede/Supabase em getCharacters, usando backup local:', err);
-    return getLocalCharacters().map(processCharacterRow);
+    const allLocal = getLocalCharacters();
+    const filteredLocal = allLocal.filter(c => c.user_id === currentUserId || !c.user_id);
+    return filteredLocal.map(processCharacterRow);
   }
 }
 
@@ -707,7 +755,9 @@ export async function createCharacter(characterData: any, session: any): Promise
     console.warn("Erro ao converter nomes de raça/classe/antecedente em IDs:", err);
   }
 
-  const characterRow = {
+  const currentUserId = getCurrentUserId();
+  const characterRow: any = {
+    user_id: currentUserId,
     name: characterData.name,
     alignment: characterData.alignment,
     level: characterData.level || 1,
@@ -742,11 +792,29 @@ export async function createCharacter(characterData: any, session: any): Promise
     conditions: characterData.conditions || []
   };
 
-  const { data: insertedChar, error: charError } = await (supabase
-    .from('characters') as any)
-    .insert(characterRow)
-    .select('*, races(name), classes(name), backgrounds(name)')
-    .single();
+  let insertedChar = null;
+  let charError = null;
+
+  try {
+    const { data, error } = await (supabase
+      .from('characters') as any)
+      .insert(characterRow)
+      .select('*, races(name), classes(name), backgrounds(name)')
+      .single();
+    insertedChar = data;
+    charError = error;
+  } catch (err) {
+    // Fallback: se a coluna user_id ainda não estiver criada na tabela remota, tenta salvar sem ela
+    const fallbackRow = { ...characterRow };
+    delete fallbackRow.user_id;
+    const { data, error } = await (supabase
+      .from('characters') as any)
+      .insert(fallbackRow)
+      .select('*, races(name), classes(name), backgrounds(name)')
+      .single();
+    insertedChar = data;
+    charError = error;
+  }
 
   if (charError) {
     throw charError;

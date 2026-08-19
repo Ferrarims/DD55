@@ -22,8 +22,15 @@ import { fetchSpellsFromDb } from './lib/api/spellsService';
 import { fetchBackgroundsFromDb } from './lib/api/backgroundsService';
 import { createCharacter, deleteCharacter, getCharacterById } from './lib/api/characterService';
 
+// Importações do sistema de autenticação e usuários
+import { getCurrentUser, logoutUser } from './lib/api/authService';
+import { LoginScreen } from './components/auth/LoginScreen';
+import UserManagementTab from './components/admin/UserManagementTab';
+import { AppUser } from './types/auth';
+
 function App() {
-  const [activeTab, setActiveTab] = useState<'character' | 'feats' | 'equipment' | 'spells' | 'classes' | 'races' | 'monsters' | 'backgrounds' | 'gameRules' | 'implementations'>('character');
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [activeTab, setActiveTab] = useState<'character' | 'feats' | 'equipment' | 'spells' | 'classes' | 'races' | 'monsters' | 'backgrounds' | 'gameRules' | 'implementations' | 'users'>('character');
   const [characterView, setCharacterView] = useState<'menu' | 'creation' | 'sheet' | 'game'>('menu');
   const [selectedCharacter, setSelectedCharacter] = useState<any>(null);
   const [session, setSession] = useState<any>(null);
@@ -35,6 +42,12 @@ function App() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
   useEffect(() => {
+    // Tenta carregar o usuário atual persistido no localStorage
+    const user = getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+    }
+
     async function loadData() {
       setIsLoading(true);
       try {
@@ -123,6 +136,16 @@ function App() {
     );
   }
 
+  if (!currentUser) {
+    return (
+      <LoginScreen
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+        }}
+      />
+    );
+  }
+
   return (
     <div className={`min-h-screen bg-slate-900 text-slate-200 font-sans flex flex-col ${isInGame ? 'p-1 md:p-2' : 'p-4 md:p-8'}`}>
       <div className={`${isInGame ? 'max-w-full px-1 md:px-2' : 'max-w-7xl'} mx-auto w-full flex-1 flex flex-col`}>
@@ -153,12 +176,26 @@ function App() {
             
             <p className="text-slate-400 uppercase tracking-widest text-xs font-bold">Forje seu Herói e Viva a sua Lenda</p>
             
-            <div className="absolute right-0 top-0 text-xs hidden sm:block">
-               {session ? (
-                  <span className="text-green-400 font-bold">● Conectado (Sessão Ativa)</span>
-               ) : (
-                  <span className="text-amber-500 font-bold animate-pulse">● Autenticando...</span>
-               )}
+            <div className="mt-3 sm:mt-0 sm:absolute sm:right-0 sm:top-0 flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-1.5 text-xs shadow-lg">
+              <div className="text-right text-left">
+                <span className="block text-slate-200 font-bold">{currentUser.name}</span>
+                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded leading-none ${
+                  currentUser.role === 'administrador' ? 'bg-amber-500/20 text-amber-500' : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {currentUser.role}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  logoutUser();
+                  setCurrentUser(null);
+                  setActiveTab('character');
+                }}
+                className="bg-slate-800 hover:bg-red-600 hover:text-white px-2 py-1 rounded font-bold text-[10px] transition-all uppercase cursor-pointer border border-slate-700 hover:border-red-500"
+              >
+                Sair
+              </button>
             </div>
           </header>
         )}
@@ -265,6 +302,19 @@ function App() {
             >
               Implementações
             </button>
+            
+            {currentUser.role === 'administrador' && (
+              <button 
+                onClick={() => setActiveTab('users')}
+                className={`px-4 py-2 text-sm font-bold uppercase tracking-wider rounded border transition-colors ${
+                  activeTab === 'users' 
+                    ? 'bg-amber-600 border-amber-500 text-white' 
+                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                }`}
+              >
+                Usuários
+              </button>
+            )}
           </div>
         )}
 
@@ -461,6 +511,9 @@ function App() {
           {activeTab === 'monsters' && <MonstersList />}
           {activeTab === 'gameRules' && <GameRulesList />}
           {activeTab === 'implementations' && <ImplementationsList />}
+          {activeTab === 'users' && currentUser?.role === 'administrador' && (
+            <UserManagementTab currentUser={currentUser} />
+          )}
         </main>
         
       </div>
