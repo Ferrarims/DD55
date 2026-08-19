@@ -1,0 +1,8 @@
+{
+  "name": "D&D 5.5 Web RPG",
+  "description": "Um RPG top-down baseado em turnos com mapas procedurais e integração com Supabase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
