@@ -396,7 +396,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
         </button>
       </div>
 
-      {character.character_inventory?.length || 0 > 0 ? (
+      {(categorizedInventory?.all?.length > 0 || (character.character_inventory && character.character_inventory.length > 0)) ? (
         <div className="space-y-5 max-h-96 overflow-y-auto pr-1">
           {/* Categoria: Armaduras */}
           {(invCategoryFilter === 'all' || invCategoryFilter === 'armaduras') && (

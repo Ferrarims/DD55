@@ -54,10 +54,19 @@ export async function fetchItemsFromDb(alreadyTriedSeeding = false): Promise<Rec
       console.warn('Aviso: Não foi possível carregar itens do banco, usando fallback local:', error.message);
       return cachedEquipmentMap;
     }
+
+    // Inicializa o mapa com as referências locais completas
+    const map: Record<string, DbItem> = {};
+    const byIdMap: Record<string, DbItem> = {};
+
+    Object.entries(EQUIPMENT_REFERENCE).forEach(([key, info]) => {
+      map[key] = {
+        ...info,
+        usable_location: getUsableLocation(info.name || key, info.category || '')
+      };
+    });
+
     if (data && data.length > 0) {
-      // Banco de dados é a fonte da verdade: constrói o mapa APENAS com os itens do banco de dados!
-      const map: Record<string, DbItem> = {};
-      const byIdMap: Record<string, DbItem> = {};
       data.forEach((item: any) => {
         const localRef = EQUIPMENT_REFERENCE[item.name];
         const dbItem: DbItem = {
@@ -78,15 +87,12 @@ export async function fetchItemsFromDb(alreadyTriedSeeding = false): Promise<Rec
           byIdMap[item.id] = dbItem;
         }
       });
-      cachedEquipmentMap = map;
-      cachedEquipmentByIdMap = byIdMap;
       isLoadedFromDb = true;
-
-      return map;
-    } else {
-      console.warn('Aviso: A tabela public.items está vazia no banco de dados.');
-      return cachedEquipmentMap;
     }
+
+    cachedEquipmentMap = map;
+    cachedEquipmentByIdMap = byIdMap;
+    return map;
   } catch (err) {
     console.warn('Erro ao conectar ao banco de itens:', err);
     return cachedEquipmentMap;
@@ -99,12 +105,13 @@ export function getCachedEquipmentReference(): Record<string, DbItem> {
 
 export function getItemById(id: string): DbItem | undefined {
   if (!id) return undefined;
-  return cachedEquipmentByIdMap[id];
+  if (cachedEquipmentByIdMap[id]) return cachedEquipmentByIdMap[id];
+  return Object.values(cachedEquipmentMap).find(i => i.id === id);
 }
 
 export function getItemNameById(id: string): string | undefined {
   if (!id) return undefined;
-  return cachedEquipmentByIdMap[id]?.name;
+  return getItemById(id)?.name;
 }
 
 export function getItemIdByName(name: string): string | undefined {
@@ -178,7 +185,11 @@ export async function findOrFetchItemIdByName(name: string): Promise<string | nu
 
     const itemsData = data as any[];
     if (itemsData && itemsData.length > 0) {
-      return itemsData[0].id;
+      const foundId = itemsData[0].id;
+      if (cachedEquipmentMap[cleanName]) {
+        cachedEquipmentMap[cleanName].id = foundId;
+      }
+      return foundId;
     }
 
     // Try substring search in database
@@ -191,10 +202,48 @@ export async function findOrFetchItemIdByName(name: string): Promise<string | nu
 
     const subItemsData = subData as any[];
     if (subItemsData && subItemsData.length > 0) {
-      return subItemsData[0].id;
+      const foundId = subItemsData[0].id;
+      if (cachedEquipmentMap[cleanName]) {
+        cachedEquipmentMap[cleanName].id = foundId;
+      }
+      return foundId;
+    }
+
+    // Fallback: If not in DB, insert item from EQUIPMENT_REFERENCE into Supabase items table
+    const ref = EQUIPMENT_REFERENCE[cleanName] || 
+      (singular ? EQUIPMENT_REFERENCE[singular] : null) || 
+      Object.values(EQUIPMENT_REFERENCE).find((i: any) => i.name?.toLowerCase() === cleanName.toLowerCase() || (singular && i.name?.toLowerCase() === singular.toLowerCase()));
+
+    const newItemPayload = {
+      name: ref?.name || cleanName,
+      category: ref?.category || 'Equipamento de Aventura',
+      cost: ref?.cost || '1 PO',
+      weight: ref?.weight || '1 kg',
+      properties: ref?.properties || '',
+      damage: ref?.damage || null,
+      armor_class: ref?.armor_class || null,
+      stealth: ref?.stealth || null
+    };
+
+    const { data: insertedItem, error: insertErr } = await (supabase
+      .from('items') as any)
+      .insert(newItemPayload)
+      .select('id, name')
+      .maybeSingle();
+
+    if (!insertErr && insertedItem && insertedItem.id) {
+      const dbItem: DbItem = {
+        ...newItemPayload,
+        id: insertedItem.id,
+        usable_location: getUsableLocation(insertedItem.name, newItemPayload.category)
+      };
+      cachedEquipmentMap[insertedItem.name] = dbItem;
+      cachedEquipmentMap[cleanName] = dbItem;
+      cachedEquipmentByIdMap[insertedItem.id] = dbItem;
+      return insertedItem.id;
     }
   } catch (e) {
-    console.warn("Erro ao buscar item_id no Supabase para:", name, e);
+    console.warn("Erro ao buscar/criar item_id no Supabase para:", name, e);
   }
 
   return null;

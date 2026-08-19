@@ -11,7 +11,7 @@ export interface InventoryItem {
 export interface LootItem {
   id: string;
   name: string;
-  type: 'weapon' | 'armor' | 'potion' | 'gold' | 'scroll';
+  type: 'weapon' | 'armor' | 'potion' | 'gold' | 'scroll' | 'misc';
   rarity: 'comum' | 'incomum' | 'raro' | 'lendário';
   value: number; // valor em PO
   description: string;
@@ -19,6 +19,7 @@ export interface LootItem {
   bonusAc?: number;
   bonusAttack?: number;
   icon: string;
+  quantity?: number;
 }
 
 export interface ItemPriceInfo {
@@ -39,4 +40,19 @@ export interface ShopCatalogItem {
   damage?: string;
   armor_class?: string;
   properties?: string;
+}
+
+export interface ItemCatalogData {
+  id: string;
+  name: string;
+  category: string | null;
+  cost: string | null;
+  weight: string | null;
+  properties: string | null;
+  damage: string | null;
+  stealth: string | null;
+  usable_location: string | null;
+  ammunition_type: string | null;
+  armor_class: string | null;
+  created_at?: string | null;
 }

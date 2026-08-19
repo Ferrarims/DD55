@@ -1,5 +1,10 @@
 // Utilitário de Proficiências de Armas, Armaduras e Escudos (Regras D&D 5.5e 2024)
 
+export function getProficiencyBonus(level: number = 1): number {
+  const validLevel = Math.max(1, Math.min(20, Math.floor(level) || 1));
+  return Math.floor((validLevel - 1) / 4) + 2;
+}
+
 export type WeaponCategory = 'simple_melee' | 'simple_ranged' | 'martial_melee' | 'martial_ranged' | 'unknown';
 export type ArmorCategory = 'light' | 'medium' | 'heavy' | 'shield' | 'none';
 

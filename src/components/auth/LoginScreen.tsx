@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Shield, Sword, Sparkles, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Shield, Sword, Lock, User, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { loginUser, registerNewUser } from '../../lib/api/authService';
 import { AppUser } from '../../types/auth';
 
@@ -10,6 +10,8 @@ interface LoginScreenProps {
 
 export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [isRegistering, setIsRegistering] = useState(false);
+  const [emailOrUsername, setEmailOrUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -17,77 +19,57 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
-    const cleanUsername = username.trim().toLowerCase();
-
-    if (!cleanUsername || !password) {
-      setError('Por favor, preencha todos os campos obrigatórios.');
-      setIsLoading(false);
-      return;
-    }
-
     try {
       if (isRegistering) {
-        if (!name.trim()) {
-          setError('Por favor, preencha o seu nome completo.');
+        const cleanName = name.trim();
+        const cleanUsername = username.trim().toLowerCase();
+        const cleanEmail = email.trim().toLowerCase();
+
+        if (!cleanName || !cleanUsername || !cleanEmail || !password) {
+          setError('Por favor, preencha todos os campos do formulário.');
           setIsLoading(false);
           return;
         }
+
         if (password !== confirmPassword) {
           setError('As senhas digitadas não coincidem.');
           setIsLoading(false);
           return;
         }
-        if (password.length < 4) {
-          setError('A senha deve conter pelo menos 4 caracteres.');
+
+        if (password.length < 8) {
+          setError('A senha deve conter no mínimo 8 caracteres.');
           setIsLoading(false);
           return;
         }
 
-        // Criar conta de jogador diretamente (cadastro público é sempre 'jogador')
-        // Usamos um admin mock para o cadastro público de jogador que simula o fluxo
-        const publicAdmin: AppUser = {
-          id: 'system-public-register',
-          username: 'system',
-          name: 'Sistema',
-          role: 'administrador'
-        };
-
-        const newUser = await registerNewUser(publicAdmin, {
+        const newUser = await registerNewUser({
+          name: cleanName,
           username: cleanUsername,
-          name: name.trim(),
-          role: 'jogador',
+          email: cleanEmail,
           password: password
         });
 
-        // Auto-login com a conta recém-criada
-        const loggedUser = await loginUser(newUser.username, password, rememberMe);
-        onLoginSuccess(loggedUser);
+        onLoginSuccess(newUser);
       } else {
-        const loggedUser = await loginUser(cleanUsername, password, rememberMe);
+        const cleanIdentifier = emailOrUsername.trim();
+        if (!cleanIdentifier || !password) {
+          setError('Por favor, preencha o e-mail/usuário e a senha.');
+          setIsLoading(false);
+          return;
+        }
+
+        const loggedUser = await loginUser(cleanIdentifier, password);
         onLoginSuccess(loggedUser);
       }
     } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro ao processar a solicitação.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleQuickLogin = async (user: string, pass: string) => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const loggedUser = await loginUser(user, pass);
-      onLoginSuccess(loggedUser);
-    } catch (err: any) {
-      setError(err.message || 'Erro no login rápido.');
+      setError(err.message || 'Ocorreu um erro ao processar a autenticação.');
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +85,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md bg-slate-900/80 border border-amber-500/20 rounded-2xl p-6 md:p-8 shadow-2xl backdrop-blur-md relative z-10"
+        className="w-full max-w-md bg-slate-900/85 border border-amber-500/20 rounded-2xl p-6 md:p-8 shadow-2xl backdrop-blur-md relative z-10"
       >
         {/* Header da Tela de Login */}
         <div className="flex flex-col items-center mb-6">
@@ -142,21 +124,77 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
         {/* Formulário de Autenticação */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {isRegistering && (
+          {isRegistering ? (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Nome Completo / Nome do Jogador
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Ex: Arthur Pendragon"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={isLoading}
+                    required
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Nome de Usuário (@username)
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Ex: arthur_guerreiro"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={isLoading}
+                    required
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  E-mail de Acesso
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    type="email"
+                    placeholder="seu.email@exemplo.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                    required
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Nome de Herói / Nome Completo
+                E-mail ou Usuário
               </label>
               <div className="relative">
-                <Sparkles className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Ex: Arthur Pendragon"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Digite seu e-mail de acesso"
+                  value={emailOrUsername}
+                  onChange={(e) => setEmailOrUsername(e.target.value)}
                   disabled={isLoading}
                   required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-650 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
                 />
               </div>
             </div>
@@ -164,25 +202,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Usuário (Username)
-            </label>
-            <div className="relative">
-              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Nome de usuário para login"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading}
-                required
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-650 focus:outline-none focus:border-amber-500/50 transition-colors"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Senha (Password)
+              Senha {isRegistering && '(mínimo 8 caracteres)'}
             </label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -193,13 +213,13 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
                 required
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-200 placeholder-slate-650 focus:outline-none focus:border-amber-500/50 transition-colors"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350 transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -220,44 +240,16 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
                   required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-650 focus:outline-none focus:border-amber-500/50 transition-colors"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
                 />
               </div>
-            </div>
-          )}
-
-          {!isRegistering && (
-            <div className="flex items-center gap-2 px-0.5 py-1">
-              <label className="relative flex items-center cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  disabled={isLoading}
-                  className="peer sr-only"
-                />
-                <div className="w-4 h-4 bg-slate-950 border border-slate-800 rounded flex items-center justify-center transition-all peer-checked:bg-amber-600 peer-checked:border-amber-500 peer-focus-visible:ring-2 peer-focus-visible:ring-amber-500/50">
-                  <svg
-                    className={`w-3 h-3 text-slate-950 transition-transform ${rememberMe ? 'scale-100' : 'scale-0'}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <span className="text-xs text-slate-400 font-bold ml-2 hover:text-slate-300 transition-colors">
-                  Manter conectado nas próximas entradas
-                </span>
-              </label>
             </div>
           )}
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-black uppercase tracking-wider py-3 rounded-xl border border-amber-400 shadow-lg shadow-amber-500/10 transition-all flex items-center justify-center gap-2 text-sm"
+            className="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-black uppercase tracking-wider py-3 rounded-xl border border-amber-400 shadow-lg shadow-amber-500/10 transition-all flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-50"
           >
             {isLoading ? (
               <span className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
@@ -285,7 +277,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             }}
             className="text-xs text-amber-500 hover:text-amber-400 font-bold underline cursor-pointer"
           >
-            {isRegistering ? 'Já possui uma conta? Entre aqui' : 'Criar uma nova conta de jogador'}
+            {isRegistering ? 'Já possui uma conta? Faça login aqui' : 'Não tem uma conta? Crie sua conta de jogador'}
           </button>
         </div>
       </motion.div>

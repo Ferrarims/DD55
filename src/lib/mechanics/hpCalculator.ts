@@ -40,6 +40,14 @@ export const normalizeHitDice = (
   };
 };
 
+export const calculateBaseHp = (hitDiceSides: number, conMod: number, level: number = 1): number => {
+  const lvl = Math.max(1, Math.floor(level) || 1);
+  const lvl1Hp = Math.max(1, hitDiceSides + conMod);
+  if (lvl === 1) return lvl1Hp;
+  const hpPerLevelAfter1 = Math.max(1, Math.floor(hitDiceSides / 2) + 1 + conMod);
+  return lvl1Hp + (lvl - 1) * hpPerLevelAfter1;
+};
+
 export const calculateTotalMaxHp = (maxHpBase: number, race: string, level: number, featStr?: string | string[]): number => {
   const isDwarf = /anão|dwarf/i.test(race || '');
   const dwarfBonus = isDwarf ? level : 0;

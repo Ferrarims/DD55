@@ -42,15 +42,16 @@ function App() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
   useEffect(() => {
-    // Tenta carregar o usuário atual persistido no localStorage
-    const user = getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-    }
-
-    async function loadData() {
+    async function initAuthAndData() {
       setIsLoading(true);
       try {
+        // Carrega usuário autenticado ativo no Supabase Auth
+        if (isSupabaseConfigured) {
+          const user = await getCurrentUser();
+          setCurrentUser(user);
+        }
+
+        // Carrega dados do catálogo D&D
         await fetchItemsFromDb();
         await Promise.all([
           fetchMonstersFromDb(),
@@ -66,7 +67,7 @@ function App() {
         setIsLoading(false);
       }
     }
-    loadData();
+    initAuthAndData();
 
     if (isSupabaseConfigured) {
       supabase.auth.getSession().then(({ data: { session } }) => {
@@ -77,8 +78,14 @@ function App() {
 
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
+      } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+        setSession(newSession);
+        if (newSession?.user) {
+          const profile = await getCurrentUser();
+          setCurrentUser(profile);
+        } else {
+          setCurrentUser(null);
+        }
       });
 
       return () => subscription.unsubscribe();
@@ -187,10 +194,13 @@ function App() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  logoutUser();
+                onClick={async () => {
+                  await logoutUser();
                   setCurrentUser(null);
+                  setSession(null);
                   setActiveTab('character');
+                  setCharacterView('menu');
+                  setSelectedCharacter(null);
                 }}
                 className="bg-slate-800 hover:bg-red-600 hover:text-white px-2 py-1 rounded font-bold text-[10px] transition-all uppercase cursor-pointer border border-slate-700 hover:border-red-500"
               >

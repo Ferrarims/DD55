@@ -51,19 +51,19 @@ export const PendingLevelChoicesSection: React.FC<PendingLevelChoicesSectionProp
       {hasPendingFightingStyle && (
         <div className="space-y-2">
           <label className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-            <span>⚔️</span> Escolha o Estilo de Luta (Permanente)
+            <span>⚔️</span> Escolha o Estilo de Luta (Talento de Combate - Permanente)
           </label>
           <p className="text-xs text-slate-300">
-            Selecione a especialidade de combate que reflete o treinamento do seu herói:
+            Selecione a especialidade de combate que reflete o treinamento do seu guerreiro:
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
             {FIGHTING_STYLES.map(fs => (
               <button
                 key={fs.id}
                 type="button"
                 disabled={fs.disabled}
                 onClick={() => !fs.disabled && setPendingFightingStyle(fs.name)}
-                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                className={`p-3 rounded-xl border text-left transition flex flex-col justify-between gap-2 cursor-pointer ${
                   fs.disabled
                     ? 'bg-slate-950/60 border-slate-900 text-slate-600 opacity-60 cursor-not-allowed'
                     : pendingFightingStyle === fs.name
@@ -71,15 +71,30 @@ export const PendingLevelChoicesSection: React.FC<PendingLevelChoicesSectionProp
                     : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-400'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-xs text-slate-100">{fs.name}</div>
-                  {fs.disabled && (
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-slate-900 text-amber-400 border border-amber-500/30">
-                      🔒 Em Grupo
-                    </span>
-                  )}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-base shrink-0">{(fs as any).icon || '⚔️'}</span>
+                      <div className="font-bold text-xs text-slate-100">{fs.name}</div>
+                    </div>
+                    {fs.disabled ? (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 text-amber-400 border border-amber-500/30 shrink-0">
+                        🔒 Em Grupo
+                      </span>
+                    ) : pendingFightingStyle === fs.name ? (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-bold shrink-0">
+                        ✓ Selecionado
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="text-[10.5px] text-slate-300 leading-relaxed">
+                    {fs.disabled ? fs.disabledReason || fs.desc : fs.desc}
+                  </div>
                 </div>
-                <div className="text-[10px] text-slate-400 leading-tight mt-1">{fs.disabledReason || fs.desc}</div>
+                <div className="pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-500">
+                  <span>Talento de Estilo de Luta</span>
+                  <span>D&amp;D 5.5e</span>
+                </div>
               </button>
             ))}
           </div>

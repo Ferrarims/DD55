@@ -30,6 +30,33 @@ export function calculateTotalCoinsFromEquipment(equipmentStrings: string[]): st
   return `${Math.floor(totalGoldPO)} PO`;
 }
 
+export function convertCoinsToGold(coins: { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number }): number {
+  let total = Number(coins.gp || 0);
+  if (coins.cp) total += Number(coins.cp) * 0.01;
+  if (coins.sp) total += Number(coins.sp) * 0.1;
+  if (coins.ep) total += Number(coins.ep) * 0.5;
+  if (coins.pp) total += Number(coins.pp) * 10;
+  return Math.round(total * 100) / 100;
+}
+
+export function parseWeightValue(rawWeight?: string | number | null): number {
+  if (rawWeight === undefined || rawWeight === null) return 0;
+  if (typeof rawWeight === 'number') return isNaN(rawWeight) ? 0 : rawWeight;
+  const match = String(rawWeight).replace(',', '.').match(/(\d+(?:\.\d+)?)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+export function calculateInventoryWeight(items: { name: string; quantity?: number; weight?: string | number }[]): number {
+  if (!Array.isArray(items)) return 0;
+  let total = 0;
+  items.forEach(item => {
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const w = parseWeightValue(item.weight);
+    total += w * qty;
+  });
+  return Math.round(total * 100) / 100;
+}
+
 export const parseInventory = (equipmentStrings: string[]): { items: InventoryItem[], coins: string } => {
   const items: InventoryItem[] = [];
   const coins = calculateTotalCoinsFromEquipment(equipmentStrings);

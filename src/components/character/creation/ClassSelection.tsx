@@ -100,21 +100,24 @@ export function ClassSelection({ charClass, setCharClass, fightingStyle, setFigh
                       : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-400'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <div className={`font-bold text-xs ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
-                      {fs.name}
+                  <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-base shrink-0">{(fs as any).icon || '⚔️'}</span>
+                      <div className={`font-bold text-xs ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
+                        {fs.name}
+                      </div>
                     </div>
                     {fs.disabled ? (
-                      <span className="text-[9px] px-1 rounded bg-slate-900 text-amber-400 border border-amber-500/30">
-                        🔒
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 text-amber-400 border border-amber-500/30 shrink-0">
+                        🔒 Em Grupo
                       </span>
                     ) : isSelected ? (
-                      <span className="text-[9px] px-1.5 rounded bg-amber-400 text-slate-950 font-bold">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-bold shrink-0">
                         ✓ Selecionado
                       </span>
                     ) : null}
                   </div>
-                  <div className="text-[11px] text-slate-400 leading-relaxed">
+                  <div className="text-[11px] text-slate-300 leading-relaxed">
                     {fs.disabled ? fs.disabledReason || fs.desc : fs.desc}
                   </div>
                 </button>

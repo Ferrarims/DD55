@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { updateCharacter, removeItemFromInventory, updateItemQuantity, addItemToInventory } from '../../../../lib/api/characterService';
-import { getItemIdByName } from '../../../../lib/api/itemsService';
+import { getItemIdByName, getCachedEquipmentReference } from '../../../../lib/api/itemsService';
 import { parseCoinsToGoldNumber, getItemPriceInfo, parseWeightToKg, getItemWeight } from '../../../../lib/mechanics/xpAndLootManager';
 import { isConsumableItem } from '../utils';
 import { ShopCatalogItem } from '../../../../types';
@@ -77,18 +77,29 @@ export const useInventoryTrade = (
 
   const totalInventoryWeight = useMemo(() => {
     let sum = 0;
-    if (character.character_inventory) {
-      character.character_inventory.forEach((inv: any) => {
-        const itemName = inv.items?.name;
-        if (itemName) {
-          const weightStr = getItemWeight(itemName);
-          const weightKg = parseWeightToKg(weightStr);
-          sum += weightKg * (inv.quantity || 1);
+    const itemsRef = getCachedEquipmentReference();
+    const rawInv = (character.character_inventory && character.character_inventory.length > 0)
+      ? character.character_inventory
+      : (Array.isArray(character.equipment) ? character.equipment : (Array.isArray(character.inventory) ? character.inventory : []));
+
+    rawInv.forEach((inv: any) => {
+      let itemName = typeof inv === 'string' ? inv : (inv.items?.name || inv.name || (inv.item_id && itemsRef[inv.item_id] ? itemsRef[inv.item_id].name : ''));
+      let qty = typeof inv === 'object' && inv?.quantity ? inv.quantity : 1;
+      if (typeof inv === 'string') {
+        const match = inv.match(/^(\d+)x?\s+(.+)$/i);
+        if (match) {
+          qty = parseInt(match[1], 10);
+          itemName = match[2];
         }
-      });
-    }
+      }
+      if (itemName) {
+        const weightStr = getItemWeight(itemName);
+        const weightKg = parseWeightToKg(weightStr);
+        sum += weightKg * qty;
+      }
+    });
     return Math.round(sum * 100) / 100;
-  }, [character.character_inventory]);
+  }, [character.character_inventory, character.equipment, character.inventory]);
 
   const isGoliathOrPowerfulBuild =
     ['Golias', 'Goliath'].includes(character.race || character.race_name) ||
@@ -103,10 +114,54 @@ export const useInventoryTrade = (
   const isOverburdened = totalInventoryWeight > maxWeightCapacity;
 
   const categorizedInventory = useMemo(() => {
-    const rawInv = (character.character_inventory || []) as any[];
+    const itemsRef = getCachedEquipmentReference();
+    let rawInv = (character.character_inventory || []) as any[];
+
+    // Fallback: se rawInv for vazio mas o personagem tiver equipment ou inventory
+    if (rawInv.length === 0) {
+      if (Array.isArray(character.equipment) && character.equipment.length > 0) {
+        rawInv = character.equipment.map((eqStr: string, idx: number) => {
+          let name = eqStr;
+          let qty = 1;
+          const match = eqStr.match(/^(\d+)x?\s+(.+)$/i);
+          if (match) {
+            qty = parseInt(match[1], 10);
+            name = match[2];
+          }
+          const ref = itemsRef[name] || Object.values(itemsRef).find((i: any) => i.name?.toLowerCase() === name.toLowerCase());
+          return {
+            id: `equip-fallback-${idx}`,
+            character_id: character.id,
+            quantity: qty,
+            items: {
+              name,
+              category: ref?.category || getItemCategory(name),
+              cost: ref?.cost || '1 PO',
+              weight: ref?.weight || '1 kg',
+              properties: ref?.properties || ''
+            }
+          };
+        });
+      } else if (Array.isArray(character.inventory) && character.inventory.length > 0) {
+        rawInv = character.inventory.map((invItem: any, idx: number) => ({
+          id: invItem.id || `inv-fallback-${idx}`,
+          character_id: character.id,
+          quantity: invItem.quantity || 1,
+          items: {
+            name: invItem.name || 'Item',
+            category: invItem.category || getItemCategory(invItem.name || ''),
+            cost: invItem.cost || '1 PO',
+            weight: invItem.weight || '1 kg',
+            properties: invItem.properties || ''
+          }
+        }));
+      }
+    }
 
     const mapped = rawInv.map((inv, index) => {
-      const rawCat = inv.items?.category;
+      const itemName = typeof inv === 'string' ? inv : (inv.items?.name || inv.name || inv.item_name || (inv.item_id && itemsRef[inv.item_id] ? itemsRef[inv.item_id].name : 'Item Desconhecido'));
+      const ref = itemsRef[itemName] || (inv.item_id ? itemsRef[inv.item_id] : null) || Object.values(itemsRef).find((i: any) => i.name?.toLowerCase() === itemName.toLowerCase());
+      const rawCat = inv.items?.category || inv.category || ref?.category;
       let cat: 'armaduras' | 'armas' | 'municoes' | 'consumiveis' | 'outros' | 'teste' = 'outros';
 
       if (rawCat) {
@@ -131,15 +186,15 @@ export const useInventoryTrade = (
         ) {
           cat = norm as any;
         } else {
-          cat = getItemCategory(inv.items?.name || '');
+          cat = getItemCategory(itemName);
         }
       } else {
-        cat = getItemCategory(inv.items?.name || '');
+        cat = getItemCategory(itemName);
       }
 
       return {
-        id: inv.id,
-        name: inv.items?.name || 'Item Desconhecido',
+        id: inv.id || `inv-${index}`,
+        name: itemName,
         quantity: inv.quantity || 1,
         category: cat,
         dbItem: inv,
@@ -188,7 +243,7 @@ export const useInventoryTrade = (
       all,
       totalConsumiveis: consumiveis.reduce((acc, curr) => acc + curr.quantity, 0),
     };
-  }, [character.character_inventory, getItemCategory]);
+  }, [character.character_inventory, character.equipment, character.inventory, getItemCategory]);
 
   const handleSellItem = (inventoryId: string) => {
     const itemObj = categorizedInventory.all.find((i: any) => i.id === inventoryId);

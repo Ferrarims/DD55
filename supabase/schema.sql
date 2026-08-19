@@ -22,13 +22,12 @@ END $$;
 -- 1. TABELAS INDEPENDENTES (PAIS PRINCIPAIS)
 -- ---------------------------------------------------------------------
 
--- Tabela de Usuários (app_users)
+-- Tabela de Perfis de Usuários (app_users) vinculada ao Supabase Auth
 CREATE TABLE IF NOT EXISTS public.app_users (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   username character varying NOT NULL,
   name character varying NOT NULL,
   role character varying NOT NULL DEFAULT 'jogador'::character varying,
-  password character varying NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   CONSTRAINT app_users_pkey PRIMARY KEY (id),
   CONSTRAINT app_users_username_key UNIQUE (username),
@@ -406,32 +405,42 @@ CREATE TABLE IF NOT EXISTS public.game_states (
 
 
 -- =====================================================================
--- 5. FUNÇÕES AUXILIARES DE SEGURANÇA E POLÍTICAS RLS (ANTI-RECURSÃO)
+-- 5. FUNÇÕES AUXILIARES DE SEGURANÇA E POLÍTICAS RLS (SUPABASE AUTH)
 -- =====================================================================
 
--- Função flexível para leitura de IDs da sessão ativa (suporta x-user-id ou Auth padrão)
-CREATE OR REPLACE FUNCTION public.get_app_current_user_id()
-RETURNS uuid AS $$
-DECLARE
-  headers_text text;
-  header_uid uuid;
+-- Função para criar perfil automaticamente no registro pelo Supabase Auth
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
 BEGIN
-  BEGIN
-    headers_text := current_setting('request.headers', true);
-    IF headers_text IS NOT NULL AND headers_text <> '' THEN
-      header_uid := (headers_text::json->>'x-user-id')::uuid;
-      IF header_uid IS NOT NULL THEN
-        RETURN header_uid;
-      END IF;
-    END IF;
-  EXCEPTION WHEN OTHERS THEN
-    -- Silencia erros ao decodificar JSON
-  END;
+  INSERT INTO public.app_users (id, username, name, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+    'jogador'
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    username = EXCLUDED.username;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-  RETURN auth.uid();
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Função auxiliar segura para checar se o usuário atual é Administrador
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.app_users
+    WHERE id = auth.uid() AND role = 'administrador'
+  );
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
-
 
 -- Habilitar RLS nas tabelas
 ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
@@ -451,80 +460,98 @@ BEGIN
     END LOOP;
 END $$;
 
--- Políticas de RLS para app_users (Seguro e sem recursão)
-CREATE POLICY "Allow public read access for app_users" ON public.app_users FOR SELECT USING (true);
-CREATE POLICY "Allow public insert for app_users" ON public.app_users FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow update for self" ON public.app_users FOR UPDATE USING (id = public.get_app_current_user_id());
-CREATE POLICY "Allow delete for self" ON public.app_users FOR DELETE USING (id = public.get_app_current_user_id());
+-- Políticas de RLS para app_users
+CREATE POLICY "Users can read own profile or admins read all" ON public.app_users
+FOR SELECT USING (auth.uid() = id OR public.is_admin());
+
+CREATE POLICY "Users can insert own profile" ON public.app_users
+FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile or admins update" ON public.app_users
+FOR UPDATE USING (auth.uid() = id OR public.is_admin());
+
+CREATE POLICY "Admins or owners can delete profile" ON public.app_users
+FOR DELETE USING (auth.uid() = id OR public.is_admin());
 
 -- Limpeza preventiva de regras em characters
-DROP POLICY IF EXISTS "Allow select for owner or admin" ON public.characters;
-DROP POLICY IF EXISTS "Allow insert for owner or admin" ON public.characters;
-DROP POLICY IF EXISTS "Allow update for owner or admin" ON public.characters;
-DROP POLICY IF EXISTS "Allow delete for owner or admin" ON public.characters;
-DROP POLICY IF EXISTS "Allow select for owner" ON public.characters;
-DROP POLICY IF EXISTS "Allow insert for owner" ON public.characters;
-DROP POLICY IF EXISTS "Allow update for owner" ON public.characters;
-DROP POLICY IF EXISTS "Allow delete for owner" ON public.characters;
+DO $$
+DECLARE
+    pol record;
+BEGIN
+    FOR pol IN 
+        SELECT policyname 
+        FROM pg_policies 
+        WHERE tablename = 'characters' AND schemaname = 'public'
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.characters', pol.policyname);
+    END LOOP;
+END $$;
 
 -- Políticas de RLS para characters
-CREATE POLICY "Allow select for owner" ON public.characters FOR SELECT USING (user_id = public.get_app_current_user_id() OR user_id IS NULL);
-CREATE POLICY "Allow insert for owner" ON public.characters FOR INSERT WITH CHECK (user_id = public.get_app_current_user_id());
-CREATE POLICY "Allow update for owner" ON public.characters FOR UPDATE USING (user_id = public.get_app_current_user_id());
-CREATE POLICY "Allow delete for owner" ON public.characters FOR DELETE USING (user_id = public.get_app_current_user_id());
+CREATE POLICY "Characters select policy" ON public.characters
+FOR SELECT USING (user_id = auth.uid() OR public.is_admin());
+
+CREATE POLICY "Characters insert policy" ON public.characters
+FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Characters update policy" ON public.characters
+FOR UPDATE USING (user_id = auth.uid());
+
+CREATE POLICY "Characters delete policy" ON public.characters
+FOR DELETE USING (user_id = auth.uid());
 
 -- Políticas de RLS para Tabelas Filhas (Dependentes) de Personagem
 DO $$
 DECLARE
   t_name text;
   dependent_tables text[] := ARRAY['character_choices', 'character_classes', 'character_feats', 'character_inventory', 'character_spells', 'game_states'];
+  pol record;
 BEGIN
   FOREACH t_name IN ARRAY dependent_tables LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', t_name);
     
-    EXECUTE format('DROP POLICY IF EXISTS "Allow select for character owner" ON public.%I;', t_name);
-    EXECUTE format('DROP POLICY IF EXISTS "Allow insert for character owner" ON public.%I;', t_name);
-    EXECUTE format('DROP POLICY IF EXISTS "Allow update for character owner" ON public.%I;', t_name);
-    EXECUTE format('DROP POLICY IF EXISTS "Allow delete for character owner" ON public.%I;', t_name);
+    FOR pol IN EXECUTE format('SELECT policyname FROM pg_policies WHERE tablename = %L AND schemaname = ''public''', t_name) LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, t_name);
+    END LOOP;
     
     EXECUTE format('
-      CREATE POLICY "Allow select for character owner" ON public.%I
+      CREATE POLICY "Select for character owner" ON public.%I
       FOR SELECT USING (
         EXISTS (
           SELECT 1 FROM public.characters c
-          WHERE c.id = character_id AND c.user_id = public.get_app_current_user_id()
+          WHERE c.id = character_id AND (c.user_id = auth.uid() OR public.is_admin())
         )
       );
-    ', t_name, t_name);
+    ', t_name);
 
     EXECUTE format('
-      CREATE POLICY "Allow insert for character owner" ON public.%I
+      CREATE POLICY "Insert for character owner" ON public.%I
       FOR INSERT WITH CHECK (
         EXISTS (
           SELECT 1 FROM public.characters c
-          WHERE c.id = character_id AND c.user_id = public.get_app_current_user_id()
+          WHERE c.id = character_id AND c.user_id = auth.uid()
         )
       );
-    ', t_name, t_name);
+    ', t_name);
 
     EXECUTE format('
-      CREATE POLICY "Allow update for character owner" ON public.%I
+      CREATE POLICY "Update for character owner" ON public.%I
       FOR UPDATE USING (
         EXISTS (
           SELECT 1 FROM public.characters c
-          WHERE c.id = character_id AND c.user_id = public.get_app_current_user_id()
+          WHERE c.id = character_id AND c.user_id = auth.uid()
         )
       );
-    ', t_name, t_name);
+    ', t_name);
 
     EXECUTE format('
-      CREATE POLICY "Allow delete for character owner" ON public.%I
+      CREATE POLICY "Delete for character owner" ON public.%I
       FOR DELETE USING (
         EXISTS (
           SELECT 1 FROM public.characters c
-          WHERE c.id = character_id AND c.user_id = public.get_app_current_user_id()
+          WHERE c.id = character_id AND c.user_id = auth.uid()
         )
       );
-    ', t_name, t_name);
+    ', t_name);
   END LOOP;
 END $$;

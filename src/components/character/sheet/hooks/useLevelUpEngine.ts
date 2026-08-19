@@ -77,11 +77,13 @@ export const useLevelUpEngine = (
 
   const hasPendingFightingStyle =
     !character.fighting_style_locked &&
+    !character.fighting_style &&
     (character.class_name || '').toLowerCase().includes('guerreiro');
 
   const hasPendingSubclass =
     effectiveLevel >= 3 &&
     !character.subclass_locked &&
+    !character.subclass &&
     (character.class_name || '').toLowerCase().includes('guerreiro');
 
   const hasPendingLevelChoices = hasPendingFightingStyle || hasPendingSubclass;

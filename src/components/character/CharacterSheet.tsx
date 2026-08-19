@@ -50,6 +50,7 @@ interface CharacterSheetProps {
   onDelete?: (id: string) => void;
   onCharacterUpdated?: () => void;
   onEnterGame?: (character: any) => void;
+  isAdminView?: boolean;
 }
 
 const formatMod = (val: number) => {
@@ -63,6 +64,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   onDelete,
   onCharacterUpdated,
   onEnterGame,
+  isAdminView = false,
 }) => {
   // 1. Estado Base da Ficha
   const {
@@ -221,10 +223,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
     selectedSubclass
   );
 
-  // Realizar Descanso Longo Automático ao abrir ou voltar para a Ficha
+  // Realizar Descanso Longo Automático ao abrir ou voltar para a Ficha (apenas para o jogador dono, nunca na visão do administrador)
   useEffect(() => {
-    handleLongRest();
-  }, [character?.id]);
+    if (!isAdminView) {
+      handleLongRest();
+    }
+  }, [character?.id, isAdminView]);
 
   // 6. Hook de Nivelamento
   const {
@@ -638,18 +642,20 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
       <ProficienciesSection character={character} />
 
       {/* Painel de Escolhas Pendentes do Nível */}
-      <PendingLevelChoicesSection
-        hasPendingLevelChoices={hasPendingLevelChoices}
-        hasPendingFightingStyle={hasPendingFightingStyle}
-        hasPendingSubclass={hasPendingSubclass}
-        pendingFightingStyle={pendingFightingStyle}
-        setPendingFightingStyle={setPendingFightingStyle}
-        pendingSubclass={pendingSubclass}
-        setPendingSubclass={setPendingSubclass}
-        handleSavePendingChoices={handleSavePendingChoices}
-        isSavingPendingChoices={isSavingPendingChoices}
-        character={character}
-      />
+      {!isAdminView && (
+        <PendingLevelChoicesSection
+          hasPendingLevelChoices={hasPendingLevelChoices}
+          hasPendingFightingStyle={hasPendingFightingStyle}
+          hasPendingSubclass={hasPendingSubclass}
+          pendingFightingStyle={pendingFightingStyle}
+          setPendingFightingStyle={setPendingFightingStyle}
+          pendingSubclass={pendingSubclass}
+          setPendingSubclass={setPendingSubclass}
+          handleSavePendingChoices={handleSavePendingChoices}
+          isSavingPendingChoices={isSavingPendingChoices}
+          character={character}
+        />
+      )}
 
       {/* Estatísticas de Combate: PV, CA, Iniciativa, Resistências e Exaustão */}
       <CombatStatsSection

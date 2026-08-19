@@ -89,7 +89,7 @@ export const EquipmentAndInventorySection: React.FC<EquipmentAndInventorySection
           >
             <span>🎒 Meus Itens (Venda)</span>
             <span className="bg-slate-950/50 px-1.5 py-0.2 rounded text-[10px]">
-              {character.character_inventory?.length || 0}
+              {categorizedInventory?.all?.length ?? character.character_inventory?.length ?? 0}
             </span>
           </button>
 

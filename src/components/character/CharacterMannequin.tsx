@@ -64,8 +64,8 @@ export const CharacterMannequin: React.FC<CharacterMannequinProps> = ({
       );
     }
 
-    // 2. LANTERNA COM FACHO DE LUZ (LANTERN / FLASHLIGHT)
-    if (lower.includes('lanterna') || lower.includes('lantern') || lower.includes('facho') || lower.includes('foco')) {
+    // 2. LANTERNA COM FACHO DE LUZ (LANTERN / FLASHLIGHT / LAMPADA)
+    if (lower.includes('lanterna') || lower.includes('lantern') || lower.includes('facho') || lower.includes('foco') || lower.includes('lampada') || lower.includes('lamp')) {
       const isMain = hand === 'main';
       const lx = handX;
       const ly = 225;
@@ -95,8 +95,8 @@ export const CharacterMannequin: React.FC<CharacterMannequinProps> = ({
       );
     }
 
-    // 3. TOCHA (TORCH)
-    if (lower.includes('tocha') || lower.includes('torch')) {
+    // 3. TOCHA / VELA (TORCH / CANDLE)
+    if (lower.includes('tocha') || lower.includes('torch') || lower.includes('vela') || lower.includes('candle')) {
       const tx = handX;
       const isMain = hand === 'main';
       const torchBeam = isMain

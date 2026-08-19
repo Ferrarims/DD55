@@ -5,6 +5,7 @@ import {
   FEATS_REFERENCE,
   formatSubclassName,
 } from '../../../../lib/api/references';
+import { FIGHTING_STYLES } from '../constants';
 
 interface ClassTraitsSectionProps {
   character: any;
@@ -72,22 +73,33 @@ export const ClassTraitsSection: React.FC<ClassTraitsSectionProps> = ({
             </div>
 
             {/* Exibição da Escolha Permanente dentro do Quadro da Habilidade: Estilo de Luta */}
-            {feat.name.includes('Estilo de Luta') && (
-              <div className="mt-2 p-2.5 bg-amber-950/50 border border-amber-500/40 rounded-lg flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-amber-200">
-                  <span className="text-base">⚔️</span>
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-amber-400/80">Opção Escolhida</div>
-                    <div className="font-bold text-amber-200">
-                      {character.fighting_style || 'Não selecionado'}
+            {feat.name.includes('Estilo de Luta') && (() => {
+              const currentStyleObj = FIGHTING_STYLES.find(fs => fs.name === character.fighting_style);
+              return (
+                <div className="mt-2 p-3 bg-amber-950/40 border border-amber-500/40 rounded-lg space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-200">
+                      <span className="text-lg">{currentStyleObj?.icon || '⚔️'}</span>
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-amber-400/80">Talento de Estilo de Luta Selecionado</div>
+                        <div className="font-bold text-amber-200 text-sm">
+                          {character.fighting_style || 'Não selecionado'}
+                        </div>
+                      </div>
                     </div>
+                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1">
+                      <span>🔒</span> Permanente
+                    </span>
                   </div>
+
+                  {currentStyleObj && (
+                    <div className="pt-1.5 border-t border-amber-500/20 text-[11px] text-slate-300 leading-relaxed">
+                      {currentStyleObj.desc}
+                    </div>
+                  )}
                 </div>
-                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1">
-                  <span>🔒</span> Permanente
-                </span>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Exibição da Escolha Permanente dentro do Quadro da Habilidade: Subclasse */}
             {feat.name.includes('Subclasse') && (

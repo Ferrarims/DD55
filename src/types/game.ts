@@ -36,7 +36,98 @@ export interface CellData {
   trapSaveStat?: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
 }
 
+export type GridCell = CellData;
+
 export type EntityType = 'hero' | 'monster';
+
+export type Condition =
+  | 'Incapacitado'
+  | 'Envenenado'
+  | 'Caído'
+  | 'Agarrado'
+  | 'Cego'
+  | 'Amedrontado'
+  | 'Paralisado'
+  | 'Atordoado'
+  | 'Inconsciente'
+  | 'Petrificado'
+  | 'Invisível'
+  | 'Surdo'
+  | 'Encantado'
+  | 'Contido'
+  | string;
+
+export type DamageType =
+  | 'Cortante'
+  | 'Perfurante'
+  | 'Concussão'
+  | 'Fogo'
+  | 'Frio'
+  | 'Elétrico'
+  | 'Ácido'
+  | 'Veneno'
+  | 'Necrótico'
+  | 'Radiante'
+  | 'Psíquico'
+  | 'Força'
+  | 'Trovejante'
+  | string;
+
+export interface DiceRoll {
+  count: number;
+  sides: number;
+  modifier: number;
+  rolls: number[];
+  total: number;
+  isCritical?: boolean;
+  isFumble?: boolean;
+}
+
+export interface DamageResult {
+  rawDamage: number;
+  effectiveDamage: number;
+  damageType: DamageType;
+  isResistant?: boolean;
+  isVulnerable?: boolean;
+  isImmune?: boolean;
+  details?: string;
+}
+
+export type CombatActionType =
+  | 'attack'
+  | 'cast_spell'
+  | 'dash'
+  | 'dodge'
+  | 'disengage'
+  | 'hide'
+  | 'help'
+  | 'ready'
+  | 'use_item'
+  | 'bonus_action'
+  | 'reaction'
+  | 'class_feature'
+  | 'racial_feature'
+  | 'breath_weapon'
+  | 'second_wind'
+  | 'action_surge'
+  | 'lay_on_hands';
+
+export interface CombatAction {
+  id?: string;
+  type: CombatActionType;
+  name: string;
+  actorId: string;
+  targetId?: string;
+  targetPosition?: GridPosition;
+  range?: number;
+  damage?: string;
+  damageType?: DamageType;
+  spellLevel?: number;
+  costAction?: boolean;
+  costBonusAction?: boolean;
+  costReaction?: boolean;
+  details?: string;
+}
 
 export interface CombatEntity {
   id: string;
@@ -152,3 +243,29 @@ export interface CombatLog {
 export type BiomeType = 'Caverna' | 'Floresta' | 'Masmorra' | 'Pântano' | 'Deserto' | 'Arena de Testes';
 
 export type WeatherType = 'clear' | 'rain' | 'snow' | 'wind' | 'storm' | 'fog';
+
+export interface ArenaMap {
+  width: number;
+  height: number;
+  cells: CellData[][];
+  biome: BiomeType;
+  weather: WeatherType;
+  traps?: { x: number; y: number; type: TrapType }[];
+  powerUps?: PowerUp[];
+}
+
+export interface GameState {
+  id?: string;
+  character_id?: string | null;
+  biome: BiomeType;
+  weather: WeatherType;
+  current_turn: number;
+  round: number;
+  turnOrder: string[];
+  currentTurnEntityId: string;
+  entities: CombatEntity[];
+  grid: CellData[][];
+  is_active: boolean;
+  combatLogs: CombatLog[];
+  updated_at?: string | null;
+}

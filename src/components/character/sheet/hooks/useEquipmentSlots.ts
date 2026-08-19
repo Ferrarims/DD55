@@ -397,10 +397,23 @@ export const useEquipmentSlots = (
 
   const getInventoryMap = () => {
     const inventoryMap = new Map<string, number>();
-    (character.character_inventory || []).forEach((inv: any) => {
-      const itemName = inv.items?.name;
+    const itemsRef = getCachedEquipmentReference();
+    const rawInv = (character.character_inventory && character.character_inventory.length > 0)
+      ? character.character_inventory
+      : (Array.isArray(character.equipment) ? character.equipment : (Array.isArray(character.inventory) ? character.inventory : []));
+
+    rawInv.forEach((inv: any) => {
+      let itemName = typeof inv === 'string' ? inv : (inv.items?.name || inv.name || inv.item_name || (inv.item_id && itemsRef[inv.item_id] ? itemsRef[inv.item_id].name : null));
+      let qty = typeof inv === 'object' && inv?.quantity ? inv.quantity : 1;
+      if (typeof inv === 'string') {
+        const match = inv.match(/^(\d+)x?\s+(.+)$/i);
+        if (match) {
+          qty = parseInt(match[1], 10);
+          itemName = match[2];
+        }
+      }
       if (itemName) {
-        inventoryMap.set(itemName, (inventoryMap.get(itemName) || 0) + (inv.quantity || 1));
+        inventoryMap.set(itemName, (inventoryMap.get(itemName) || 0) + qty);
       }
     });
     return inventoryMap;

@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { calculateAC } from '../mechanics/acCalculator';
 import { parseEquipmentToList } from '../mechanics/xpAndLootManager';
-import { getItemIdByName, findOrFetchItemIdByName, getCachedEquipmentReference, getItemById } from './itemsService';
+import { getItemIdByName, findOrFetchItemIdByName, getCachedEquipmentReference, getItemById, getItemNameById } from './itemsService';
 import { BACKGROUNDS_REFERENCE } from '../../lib/api/references';
 
 const LOCAL_STORAGE_CHARS_KEY = 'dnd_local_characters';
@@ -42,15 +42,15 @@ export function saveLocalCharacters(chars: any[]): void {
   }
 }
 
-const getCurrentUserId = (): string | null => {
+export async function getAuthUserId(): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   try {
-    const raw = localStorage.getItem('dnd_app_current_user');
-    if (!raw) return null;
-    return JSON.parse(raw)?.id || null;
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id || null;
   } catch (e) {
     return null;
   }
-};
+}
 
 export function processCharacterRow(char: any): any {
   let goldNumber = char.gp || 0;
@@ -212,10 +212,91 @@ export function processCharacterRow(char: any): any {
     char.originFeat = BACKGROUNDS_REFERENCE[char.background].feat;
   }
 
+  // Sincroniza e garante integridade do inventário (com fallback para character_choices, equipment e inventory)
+  const itemsRef = getCachedEquipmentReference();
+
+  if (!char.character_inventory || !Array.isArray(char.character_inventory) || char.character_inventory.length === 0) {
+    // 1. Tenta extrair de character_choices se existir
+    let choiceInv: any[] = [];
+    if (char.character_choices && Array.isArray(char.character_choices)) {
+      const backupChoice = char.character_choices.find((c: any) => 
+        c.feature_name === 'inventory_backup' || 
+        c.feature_name === 'inventory_items_data' || 
+        c.choice_type === 'inventory_backup'
+      );
+      if (backupChoice && backupChoice.choice_value) {
+        try {
+          const parsed = JSON.parse(backupChoice.choice_value);
+          if (Array.isArray(parsed)) choiceInv = parsed;
+        } catch (e) {
+          if (typeof backupChoice.choice_value === 'string') {
+            choiceInv = backupChoice.choice_value.split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+        }
+      }
+    }
+
+    const rawEquip = choiceInv.length > 0 
+      ? choiceInv 
+      : (Array.isArray(char.equipment) && char.equipment.length > 0 
+          ? char.equipment 
+          : (Array.isArray(char.inventory) && char.inventory.length > 0 ? char.inventory : []));
+
+    if (rawEquip.length > 0) {
+      char.character_inventory = rawEquip.map((eq: any, idx: number) => {
+        let name = typeof eq === 'string' ? eq : (eq?.items?.name || eq?.name || 'Item');
+        let qty = typeof eq === 'object' && eq?.quantity ? eq.quantity : 1;
+        if (typeof eq === 'string') {
+          const match = eq.match(/^(\d+)x?\s+(.+)$/i);
+          if (match) {
+            qty = parseInt(match[1], 10);
+            name = match[2];
+          }
+        }
+        const ref = itemsRef[name] || Object.values(itemsRef).find((i: any) => i.name?.toLowerCase() === name.toLowerCase());
+        return {
+          id: typeof eq === 'object' && eq?.id ? eq.id : `char-inv-${char.id || 'temp'}-${idx}`,
+          character_id: char.id,
+          quantity: qty,
+          equip_slot: typeof eq === 'object' && eq?.equip_slot ? eq.equip_slot : null,
+          items: {
+            id: ref?.id || (typeof eq === 'object' && eq?.items?.id ? eq.items.id : `item-${idx}`),
+            name: ref?.name || name,
+            category: ref?.category || (typeof eq === 'object' && (eq?.items?.category || eq?.category) ? (eq.items?.category || eq.category) : 'Outros'),
+            cost: ref?.cost || (typeof eq === 'object' && (eq?.items?.cost || eq?.cost) ? (eq.items?.cost || eq.cost) : '1 PO'),
+            weight: ref?.weight || (typeof eq === 'object' && (eq?.items?.weight || eq?.weight) ? (eq.items?.weight || eq.weight) : '1 kg'),
+            properties: ref?.properties || (typeof eq === 'object' && (eq?.items?.properties || eq?.properties) ? (eq.items?.properties || eq.properties) : '')
+          }
+        };
+      });
+    }
+  }
+
   if (char.character_inventory && Array.isArray(char.character_inventory)) {
+    char.character_inventory = char.character_inventory.map((inv: any, idx: number) => {
+      const cachedById = inv.item_id ? getItemById(inv.item_id) : null;
+      const name = inv.items?.name || inv.name || inv.item_name || (inv.item_id ? getItemNameById(inv.item_id) : null) || (inv.item_id && itemsRef[inv.item_id] ? itemsRef[inv.item_id].name : null) || 'Item';
+      const ref = cachedById || itemsRef[name] || (inv.item_id ? itemsRef[inv.item_id] : null) || Object.values(itemsRef).find((i: any) => i.name?.toLowerCase() === name.toLowerCase());
+
+      const populatedItems = {
+        id: inv.items?.id || inv.item_id || ref?.id || `item-ref-${idx}`,
+        name: inv.items?.name || ref?.name || name,
+        category: inv.items?.category || ref?.category || inv.category || 'Outros',
+        cost: inv.items?.cost || ref?.cost || '1 PO',
+        weight: inv.items?.weight || ref?.weight || '1 kg',
+        properties: inv.items?.properties || ref?.properties || ''
+      };
+
+      return {
+        ...inv,
+        name: populatedItems.name,
+        items: populatedItems
+      };
+    });
+
     const equipList: string[] = [];
     char.character_inventory.forEach((inv: any) => {
-      const name = inv.items?.name;
+      const name = inv.items?.name || inv.name;
       if (name) {
         const qty = inv.quantity || 1;
         if (qty > 1) {
@@ -485,7 +566,7 @@ function createLocalCharacter(characterData: any): any {
 
   const localChar = {
     id: localId,
-    user_id: getCurrentUserId(),
+    user_id: null,
     name: characterData.name || 'Herói',
     alignment: characterData.alignment || 'Neutro',
     level: characterData.level || 1,
@@ -553,33 +634,26 @@ const CHAR_SELECT_WITH_ATTACKS = '*, character_inventory(*, items(*)), character
 const CHAR_SELECT_SAFE = '*, character_inventory(*, items(*)), character_feats(*, feats(*)), character_spells(*, spells(*)), character_choices(*), character_classes(*, classes(*)), races(name), classes(name), backgrounds(name)';
 
 export async function getCharacters(): Promise<any[]> {
-  const currentUserId = getCurrentUserId();
+  const currentUserId = await getAuthUserId();
   if (!currentUserId) {
     return [];
   }
 
   if (!isSupabaseConfigured) {
     const allLocal = getLocalCharacters();
-    const filteredLocal = allLocal.filter(c => c.user_id === currentUserId || !c.user_id);
+    const filteredLocal = allLocal.filter(c => c.user_id === currentUserId);
     return filteredLocal.map(processCharacterRow);
   }
 
   try {
-    // Tenta primeiro filtrar pelo ID de usuário logado
+    // Busca os personagens do usuário autenticado no Supabase
     let res = await supabase
       .from('characters')
       .select(CHAR_SELECT_WITH_ATTACKS)
       .eq('user_id', currentUserId)
       .order('created_at', { ascending: false });
 
-    if (res.error && res.error.message?.includes('user_id')) {
-      // Se der erro de coluna inexistente, faz a busca geral como fallback (sem quebrar)
-      res = await supabase
-        .from('characters')
-        .select(CHAR_SELECT_WITH_ATTACKS)
-        .order('created_at', { ascending: false });
-    } else if (res.error) {
-      // Tenta sem a tabela character_attacks caso ela tenha sido excluída pelo usuário
+    if (res.error) {
       res = await supabase
         .from('characters')
         .select(CHAR_SELECT_SAFE)
@@ -588,34 +662,81 @@ export async function getCharacters(): Promise<any[]> {
     }
 
     if (res.error) {
-      console.warn('Erro ao buscar personagens no Supabase, usando backup local:', res.error);
+      console.warn('Erro ao buscar personagens no Supabase:', res.error);
       const allLocal = getLocalCharacters();
-      const filteredLocal = allLocal.filter(c => c.user_id === currentUserId || !c.user_id);
+      const filteredLocal = allLocal.filter(c => c.user_id === currentUserId);
       return filteredLocal.map(processCharacterRow);
     }
 
     const processed = (res.data || []).map(processCharacterRow);
-    const uniqueProcessed: any[] = [];
-    const seenIds = new Set<string>();
-    for (const item of processed) {
-      if (item.id) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          uniqueProcessed.push(item);
-        }
-      } else {
-        uniqueProcessed.push(item);
-      }
-    }
-    if (uniqueProcessed.length > 0) {
-      saveLocalCharacters(uniqueProcessed);
-    }
-    return uniqueProcessed;
+    return processed;
   } catch (err) {
-    console.warn('Falha de rede/Supabase em getCharacters, usando backup local:', err);
+    console.warn('Falha de rede em getCharacters:', err);
+    return [];
+  }
+}
+
+/**
+ * Busca todos os personagens pertencentes a um usuário específico (útil para administradores).
+ */
+export async function getCharactersByUserId(targetUserId: string): Promise<any[]> {
+  if (!targetUserId) {
+    return [];
+  }
+
+  if (!isSupabaseConfigured) {
     const allLocal = getLocalCharacters();
-    const filteredLocal = allLocal.filter(c => c.user_id === currentUserId || !c.user_id);
+    const filteredLocal = allLocal.filter(c => c.user_id === targetUserId);
     return filteredLocal.map(processCharacterRow);
+  }
+
+  try {
+    let res = await supabase
+      .from('characters')
+      .select(CHAR_SELECT_WITH_ATTACKS)
+      .eq('user_id', targetUserId)
+      .order('created_at', { ascending: false });
+
+    if (res.error) {
+      res = await supabase
+        .from('characters')
+        .select(CHAR_SELECT_SAFE)
+        .eq('user_id', targetUserId)
+        .order('created_at', { ascending: false });
+    }
+
+    if (res.error) {
+      console.warn('Erro ao buscar personagens por usuário no Supabase:', res.error);
+      const allLocal = getLocalCharacters();
+      const filteredLocal = allLocal.filter(c => c.user_id === targetUserId);
+      return filteredLocal.map(processCharacterRow);
+    }
+
+    const rawChars = res.data || [];
+    const processedChars = await Promise.all(
+      rawChars.map(async (char: any) => {
+        // Se character_inventory veio vazio na query relacional aninhada, tenta buscar diretamente
+        if (!char.character_inventory || char.character_inventory.length === 0) {
+          try {
+            const { data: invData } = await (supabase
+              .from('character_inventory') as any)
+              .select('*, items(*)')
+              .eq('character_id', char.id);
+            if (invData && invData.length > 0) {
+              char.character_inventory = invData;
+            }
+          } catch (e) {
+            // Silencioso se falhar
+          }
+        }
+        return processCharacterRow(char);
+      })
+    );
+
+    return processedChars;
+  } catch (err) {
+    console.warn('Falha de rede em getCharactersByUserId:', err);
+    return [];
   }
 }
 
@@ -649,7 +770,19 @@ export async function getCharacterById(charId: string): Promise<any> {
     }
 
     if (resObj.data) {
-      return processCharacterRow(resObj.data);
+      const char = resObj.data;
+      if (!char.character_inventory || char.character_inventory.length === 0) {
+        try {
+          const { data: invData } = await (supabase
+            .from('character_inventory') as any)
+            .select('*, items(*)')
+            .eq('character_id', char.id);
+          if (invData && invData.length > 0) {
+            char.character_inventory = invData;
+          }
+        } catch (e) {}
+      }
+      return processCharacterRow(char);
     }
     const local = getLocalCharacters().find(c => c.id === charId);
     return local ? processCharacterRow(local) : null;
@@ -755,7 +888,15 @@ export async function createCharacter(characterData: any, session: any): Promise
     console.warn("Erro ao converter nomes de raça/classe/antecedente em IDs:", err);
   }
 
-  const currentUserId = getCurrentUserId();
+  let currentUserId = session?.user?.id;
+  if (!currentUserId) {
+    currentUserId = await getAuthUserId();
+  }
+
+  if (!currentUserId) {
+    throw new Error('Usuário não autenticado. Faça login com sua conta para criar personagens.');
+  }
+
   const characterRow: any = {
     user_id: currentUserId,
     name: characterData.name,
@@ -952,6 +1093,14 @@ export async function createCharacter(characterData: any, session: any): Promise
       }
     }
     
+    if (itemsToInsert.length > 0) {
+      try {
+        await saveChoiceToCharacter(charObj.id, 'inventory_backup', JSON.stringify(itemsToInsert), 'criacao');
+      } catch (e) {
+        console.warn("Falha ao salvar backup do inventário em character_choices:", e);
+      }
+    }
+
     // Re-fetch character com todas as relações
     let { data: refetched } = await (supabase
        .from('characters') as any)
@@ -991,11 +1140,6 @@ export async function deleteCharacter(id: string): Promise<void> {
   }
 
   try {
-    const { data: authData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
-    if (!authData?.session) {
-      await supabase.auth.signInAnonymously().catch(() => {});
-    }
-
     try {
       await supabase.from('character_inventory').delete().eq('character_id', id);
       await supabase.from('character_feats').delete().eq('character_id', id);
@@ -1177,6 +1321,10 @@ export async function updateCharacter(id: string, payload: any): Promise<void> {
     }
     if (payload.level_choices) {
       await saveChoiceToCharacter(id, 'level_choices', payload.level_choices, 'nivelamento');
+    }
+    if (payload.equipment || payload.character_inventory || payload.inventory) {
+      const invToSave = payload.character_inventory || payload.equipment || payload.inventory;
+      await saveChoiceToCharacter(id, 'inventory_backup', JSON.stringify(invToSave), 'inventario');
     }
     if (payload.bgBonuses && Array.isArray(payload.bgBonuses)) {
       for (const bonus of payload.bgBonuses) {
