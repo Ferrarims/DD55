@@ -1,7 +1,7 @@
 -- =====================================================================
 -- ESQUEMA COMPLETO E UNIFICADO DO BANCO DE DADOS (SUPABASE)
--- Contém a estrutura de dados atualizada, chaves estrangeiras exatas,
--- e políticas RLS seguras para evitar recursão infinita.
+-- Versão consolidada e atualizada com todas as tabelas, tipos,
+-- chaves estrangeiras, gatilhos de autenticação e políticas RLS.
 -- =====================================================================
 
 -- Habilitar extensões necessárias
@@ -19,19 +19,20 @@ END $$;
 
 
 -- ---------------------------------------------------------------------
--- 1. TABELAS INDEPENDENTES (PAIS PRINCIPAIS)
+-- 1. TABELAS INDEPENDENTES (PAIS PRINCIPAIS / CATÁLOGO BASE)
 -- ---------------------------------------------------------------------
 
 -- Tabela de Perfis de Usuários (app_users) vinculada ao Supabase Auth
 CREATE TABLE IF NOT EXISTS public.app_users (
-  id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  id uuid NOT NULL,
   username character varying NOT NULL,
   name character varying NOT NULL,
   role character varying NOT NULL DEFAULT 'jogador'::character varying,
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   CONSTRAINT app_users_pkey PRIMARY KEY (id),
   CONSTRAINT app_users_username_key UNIQUE (username),
-  CONSTRAINT app_users_role_check CHECK (role IN ('administrador', 'jogador'))
+  CONSTRAINT app_users_role_check CHECK (role IN ('administrador', 'jogador')),
+  CONSTRAINT app_users_id_fkey FOREIGN KEY (id) REFERENCES auth.users (id) ON DELETE CASCADE
 );
 
 -- Tabela de Talentos (feats)
@@ -197,7 +198,7 @@ CREATE TABLE IF NOT EXISTS public.class_progressions (
   prof character varying NOT NULL,
   cantrips_known integer,
   prepared_spells integer,
-  spell_slots integer[], -- Mapeado de ARRAY
+  spell_slots ARRAY,
   bardic_die character varying,
   rages integer,
   rage_damage character varying,
@@ -322,7 +323,7 @@ CREATE TABLE IF NOT EXISTS public.characters (
 
 
 -- ---------------------------------------------------------------------
--- 4. TABELAS FILHAS DO PERSONAGEM (CHARACTER DEPENDENTS)
+-- 4. TABELAS FILHAS DO PERSONAGEM (DEPENDENTES)
 -- ---------------------------------------------------------------------
 
 -- Escolhas do Personagem (character_choices)
@@ -405,10 +406,10 @@ CREATE TABLE IF NOT EXISTS public.game_states (
 
 
 -- =====================================================================
--- 5. FUNÇÕES AUXILIARES DE SEGURANÇA E POLÍTICAS RLS (SUPABASE AUTH)
+-- 5. FUNÇÕES AUXILIARES, TRIGGERS E POLÍTICAS RLS (SUPABASE AUTH)
 -- =====================================================================
 
--- Função para criar perfil automaticamente no registro pelo Supabase Auth
+-- Função para criar/sincronizar perfil no app_users quando usuário se registra via Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -431,6 +432,27 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- Função e Trigger para proteger contra auto-elevação de papel (role)
+CREATE OR REPLACE FUNCTION public.protect_app_user_role()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.role <> OLD.role THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.app_users
+      WHERE id = auth.uid() AND role = 'administrador'
+    ) THEN
+      RAISE EXCEPTION 'Apenas administradores podem alterar papéis de usuário no sistema.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS protect_user_role_trigger ON public.app_users;
+CREATE TRIGGER protect_user_role_trigger
+  BEFORE UPDATE ON public.app_users
+  FOR EACH ROW EXECUTE FUNCTION public.protect_app_user_role();
+
 -- Função auxiliar segura para checar se o usuário atual é Administrador
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean AS $$
@@ -442,11 +464,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
 
--- Habilitar RLS nas tabelas
+-- Habilitar RLS em todas as tabelas
 ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.characters ENABLE ROW LEVEL SECURITY;
 
--- Limpeza preventiva de regras em app_users
+-- ---------------------------------------------------------------------
+-- Políticas de RLS para app_users
+-- ---------------------------------------------------------------------
 DO $$
 DECLARE
     pol record;
@@ -460,7 +484,6 @@ BEGIN
     END LOOP;
 END $$;
 
--- Políticas de RLS para app_users
 CREATE POLICY "Users can read own profile or admins read all" ON public.app_users
 FOR SELECT USING (auth.uid() = id OR public.is_admin());
 
@@ -473,7 +496,9 @@ FOR UPDATE USING (auth.uid() = id OR public.is_admin());
 CREATE POLICY "Admins or owners can delete profile" ON public.app_users
 FOR DELETE USING (auth.uid() = id OR public.is_admin());
 
--- Limpeza preventiva de regras em characters
+-- ---------------------------------------------------------------------
+-- Políticas de RLS para characters
+-- ---------------------------------------------------------------------
 DO $$
 DECLARE
     pol record;
@@ -487,7 +512,6 @@ BEGIN
     END LOOP;
 END $$;
 
--- Políticas de RLS para characters
 CREATE POLICY "Characters select policy" ON public.characters
 FOR SELECT USING (user_id = auth.uid() OR public.is_admin());
 
@@ -495,16 +519,21 @@ CREATE POLICY "Characters insert policy" ON public.characters
 FOR INSERT WITH CHECK (user_id = auth.uid());
 
 CREATE POLICY "Characters update policy" ON public.characters
-FOR UPDATE USING (user_id = auth.uid());
+FOR UPDATE USING (user_id = auth.uid() OR public.is_admin());
 
 CREATE POLICY "Characters delete policy" ON public.characters
-FOR DELETE USING (user_id = auth.uid());
+FOR DELETE USING (user_id = auth.uid() OR public.is_admin());
 
--- Políticas de RLS para Tabelas Filhas (Dependentes) de Personagem
+-- ---------------------------------------------------------------------
+-- Políticas de RLS para Tabelas Dependentes do Personagem
+-- ---------------------------------------------------------------------
 DO $$
 DECLARE
   t_name text;
-  dependent_tables text[] := ARRAY['character_choices', 'character_classes', 'character_feats', 'character_inventory', 'character_spells', 'game_states'];
+  dependent_tables text[] := ARRAY[
+    'character_choices', 'character_classes', 'character_feats', 
+    'character_inventory', 'character_spells', 'game_states'
+  ];
   pol record;
 BEGIN
   FOREACH t_name IN ARRAY dependent_tables LOOP
@@ -515,7 +544,7 @@ BEGIN
     END LOOP;
     
     EXECUTE format('
-      CREATE POLICY "Select for character owner" ON public.%I
+      CREATE POLICY "Select for character owner or admin" ON public.%I
       FOR SELECT USING (
         EXISTS (
           SELECT 1 FROM public.characters c
@@ -525,33 +554,67 @@ BEGIN
     ', t_name);
 
     EXECUTE format('
-      CREATE POLICY "Insert for character owner" ON public.%I
+      CREATE POLICY "Insert for character owner or admin" ON public.%I
       FOR INSERT WITH CHECK (
         EXISTS (
           SELECT 1 FROM public.characters c
-          WHERE c.id = character_id AND c.user_id = auth.uid()
+          WHERE c.id = character_id AND (c.user_id = auth.uid() OR public.is_admin())
         )
       );
     ', t_name);
 
     EXECUTE format('
-      CREATE POLICY "Update for character owner" ON public.%I
+      CREATE POLICY "Update for character owner or admin" ON public.%I
       FOR UPDATE USING (
         EXISTS (
           SELECT 1 FROM public.characters c
-          WHERE c.id = character_id AND c.user_id = auth.uid()
+          WHERE c.id = character_id AND (c.user_id = auth.uid() OR public.is_admin())
         )
       );
     ', t_name);
 
     EXECUTE format('
-      CREATE POLICY "Delete for character owner" ON public.%I
+      CREATE POLICY "Delete for character owner or admin" ON public.%I
       FOR DELETE USING (
         EXISTS (
           SELECT 1 FROM public.characters c
-          WHERE c.id = character_id AND c.user_id = auth.uid()
+          WHERE c.id = character_id AND (c.user_id = auth.uid() OR public.is_admin())
         )
       );
     ', t_name);
+  END LOOP;
+END $$;
+
+-- ---------------------------------------------------------------------
+-- Políticas de RLS para Tabelas de Catálogo / Regras (Leitura Pública)
+-- ---------------------------------------------------------------------
+DO $$
+DECLARE
+  t_ref text;
+  reference_tables text[] := ARRAY[
+    'backgrounds', 'bestiary', 'classes', 'feats', 'items', 'races', 
+    'race_traits', 'race_variants', 'spells', 'subclasses', 
+    'subclass_features', 'class_level_features', 'class_progressions', 
+    'game_rules', 'implementations'
+  ];
+  pol record;
+BEGIN
+  FOREACH t_ref IN ARRAY reference_tables LOOP
+    BEGIN
+      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', t_ref);
+      FOR pol IN EXECUTE format('SELECT policyname FROM pg_policies WHERE tablename = %L AND schemaname = ''public''', t_ref) LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, t_ref);
+      END LOOP;
+      EXECUTE format('
+        CREATE POLICY "Allow read catalog for all" ON public.%I
+        FOR SELECT USING (true);
+      ', t_ref);
+      EXECUTE format('
+        CREATE POLICY "Allow admin manage catalog" ON public.%I
+        FOR ALL USING (public.is_admin());
+      ', t_ref);
+    EXCEPTION WHEN undefined_table THEN
+      NULL;
+    END;
   END LOOP;
 END $$;
