@@ -1432,61 +1432,168 @@ export async function saveCharacterFeatures(characterId: string, coreData: any, 
 }
 
 // ==========================================
+// ==========================================
 // INVENTORY CRUD METHODS (Relational Tables)
 // ==========================================
 
 export async function addItemToInventory(characterId: string, itemIdOrName: string, quantity: number = 1, equipSlot: string | null = null): Promise<any> {
   let itemId = itemIdOrName;
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemIdOrName);
-  if (!isUuid) {
-    const fetchedId = await findOrFetchItemIdByName(itemIdOrName);
-    if (!fetchedId) {
-      throw new Error(`Item "${itemIdOrName}" não foi encontrado na tabela public.items do banco.`);
+
+  if (!isSupabaseConfigured) {
+    const local = getLocalCharacters();
+    const char = local.find(c => c.id === characterId);
+    const syntheticId = `inv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const itemObj = getItemById(itemId) || { id: itemId, name: itemIdOrName };
+
+    if (char) {
+      if (!char.character_inventory) char.character_inventory = [];
+      const existing = char.character_inventory.find((i: any) => i.item_id === itemId || i.name === itemIdOrName);
+      if (existing) {
+        existing.quantity = (existing.quantity || 1) + quantity;
+        if (equipSlot) existing.equip_slot = equipSlot;
+        saveLocalCharacters(local);
+        return existing;
+      } else {
+        const newEntry = {
+          id: syntheticId,
+          character_id: characterId,
+          item_id: itemId,
+          quantity,
+          equip_slot: equipSlot,
+          items: itemObj,
+          name: itemObj?.name || itemIdOrName
+        };
+        char.character_inventory.push(newEntry);
+        saveLocalCharacters(local);
+        return newEntry;
+      }
     }
-    itemId = fetchedId;
+    return {
+      id: syntheticId,
+      character_id: characterId,
+      item_id: itemId,
+      quantity,
+      equip_slot: equipSlot,
+      items: itemObj,
+      name: itemObj?.name || itemIdOrName
+    };
   }
 
-  // Busca item existente no inventário
-  const { data: existing } = await (supabase.from('character_inventory') as any)
-    .select('*')
-    .eq('character_id', characterId)
-    .eq('item_id', itemId)
-    .maybeSingle();
+  try {
+    if (!isUuid) {
+      const fetchedId = await findOrFetchItemIdByName(itemIdOrName);
+      if (!fetchedId) {
+        throw new Error(`Item "${itemIdOrName}" não foi encontrado na tabela public.items do banco.`);
+      }
+      itemId = fetchedId;
+    }
 
-  const existingObj: any = existing;
+    // Busca item existente no inventário
+    const { data: existing } = await (supabase.from('character_inventory') as any)
+      .select('*')
+      .eq('character_id', characterId)
+      .eq('item_id', itemId)
+      .maybeSingle();
 
-  if (existingObj) {
+    const existingObj: any = existing;
+
+    if (existingObj) {
+      const { data, error } = await (supabase
+        .from('character_inventory') as any)
+        .update({
+          quantity: existingObj.quantity + quantity,
+          equip_slot: equipSlot ?? existingObj.equip_slot ?? null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingObj.id)
+        .select('*, items(*)')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    }
+
     const { data, error } = await (supabase
       .from('character_inventory') as any)
-      .update({
-        quantity: existingObj.quantity + quantity,
-        equip_slot: equipSlot ?? existingObj.equip_slot ?? null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', existingObj.id)
+      .insert({ character_id: characterId, item_id: itemId, quantity, equip_slot: equipSlot })
       .select('*, items(*)')
       .maybeSingle();
+
     if (error) throw error;
     return data;
+  } catch (networkErr) {
+    console.warn('Fallback local para addItemToInventory após erro:', networkErr);
+    const local = getLocalCharacters();
+    const char = local.find(c => c.id === characterId);
+    const syntheticId = `inv-${Date.now()}`;
+    const itemObj = getItemById(itemId) || { id: itemId, name: itemIdOrName };
+    if (char) {
+      if (!char.character_inventory) char.character_inventory = [];
+      const existing = char.character_inventory.find((i: any) => i.item_id === itemId || i.name === itemIdOrName);
+      if (existing) {
+        existing.quantity = (existing.quantity || 1) + quantity;
+        if (equipSlot) existing.equip_slot = equipSlot;
+        saveLocalCharacters(local);
+        return existing;
+      }
+      const newEntry = {
+        id: syntheticId,
+        character_id: characterId,
+        item_id: itemId,
+        quantity,
+        equip_slot: equipSlot,
+        items: itemObj,
+        name: itemObj?.name || itemIdOrName
+      };
+      char.character_inventory.push(newEntry);
+      saveLocalCharacters(local);
+      return newEntry;
+    }
+    return {
+      id: syntheticId,
+      character_id: characterId,
+      item_id: itemId,
+      quantity,
+      equip_slot: equipSlot,
+      items: itemObj,
+      name: itemObj?.name || itemIdOrName
+    };
   }
-
-  const { data, error } = await (supabase
-    .from('character_inventory') as any)
-    .insert({ character_id: characterId, item_id: itemId, quantity, equip_slot: equipSlot })
-    .select('*, items(*)')
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function removeItemFromInventory(inventoryId: string): Promise<void> {
-  const { error } = await (supabase
-    .from('character_inventory') as any)
-    .delete()
-    .eq('id', inventoryId);
+  const updateLocal = () => {
+    const local = getLocalCharacters();
+    let changed = false;
+    for (const c of local) {
+      if (c.character_inventory && Array.isArray(c.character_inventory)) {
+        const lenBefore = c.character_inventory.length;
+        c.character_inventory = c.character_inventory.filter((i: any) => i.id !== inventoryId);
+        if (c.character_inventory.length !== lenBefore) changed = true;
+      }
+    }
+    if (changed) saveLocalCharacters(local);
+  };
 
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    updateLocal();
+    return;
+  }
+
+  try {
+    const { error } = await (supabase
+      .from('character_inventory') as any)
+      .delete()
+      .eq('id', inventoryId);
+
+    if (error) {
+      console.warn('Aviso ao remover do Supabase:', error);
+    }
+  } catch (err) {
+    console.warn('Aviso de rede ao remover item do inventário no Supabase:', err);
+  } finally {
+    updateLocal();
+  }
 }
 
 export async function updateItemQuantity(inventoryId: string, quantity: number): Promise<void> {
@@ -1495,21 +1602,77 @@ export async function updateItemQuantity(inventoryId: string, quantity: number):
     return;
   }
 
-  const { error } = await (supabase
-    .from('character_inventory') as any)
-    .update({ quantity, updated_at: new Date().toISOString() })
-    .eq('id', inventoryId);
+  const updateLocal = () => {
+    const local = getLocalCharacters();
+    let changed = false;
+    for (const c of local) {
+      if (c.character_inventory && Array.isArray(c.character_inventory)) {
+        const item = c.character_inventory.find((i: any) => i.id === inventoryId);
+        if (item) {
+          item.quantity = quantity;
+          changed = true;
+        }
+      }
+    }
+    if (changed) saveLocalCharacters(local);
+  };
 
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    updateLocal();
+    return;
+  }
+
+  try {
+    const { error } = await (supabase
+      .from('character_inventory') as any)
+      .update({ quantity, updated_at: new Date().toISOString() })
+      .eq('id', inventoryId);
+
+    if (error) {
+      console.warn('Aviso ao atualizar quantidade no Supabase:', error);
+    }
+  } catch (err) {
+    console.warn('Aviso de rede ao atualizar quantidade no Supabase:', err);
+  } finally {
+    updateLocal();
+  }
 }
 
 export async function updateItemEquipSlot(inventoryId: string, equipSlot: string | null): Promise<void> {
-  const { error } = await (supabase
-    .from('character_inventory') as any)
-    .update({ equip_slot: equipSlot, updated_at: new Date().toISOString() })
-    .eq('id', inventoryId);
+  const updateLocal = () => {
+    const local = getLocalCharacters();
+    let changed = false;
+    for (const c of local) {
+      if (c.character_inventory && Array.isArray(c.character_inventory)) {
+        const item = c.character_inventory.find((i: any) => i.id === inventoryId);
+        if (item) {
+          item.equip_slot = equipSlot;
+          changed = true;
+        }
+      }
+    }
+    if (changed) saveLocalCharacters(local);
+  };
 
-  if (error) throw error;
+  if (!isSupabaseConfigured) {
+    updateLocal();
+    return;
+  }
+
+  try {
+    const { error } = await (supabase
+      .from('character_inventory') as any)
+      .update({ equip_slot: equipSlot, updated_at: new Date().toISOString() })
+      .eq('id', inventoryId);
+
+    if (error) {
+      console.warn('Aviso ao atualizar equip_slot no Supabase:', error);
+    }
+  } catch (err) {
+    console.warn('Aviso de rede ao atualizar equip_slot no Supabase:', err);
+  } finally {
+    updateLocal();
+  }
 }
 
 export async function syncInventoryEquipSlots(
@@ -1518,6 +1681,8 @@ export async function syncInventoryEquipSlots(
   equipmentSlots: Record<string, string | null>
 ): Promise<void> {
   if (!characterId) return;
+
+  const slotEntries = Object.entries(equipmentSlots || {}).filter(([_, name]) => name && typeof name === 'string');
 
   if (Array.isArray(characterInventory) && characterInventory.length > 0) {
     for (const inv of characterInventory) {
@@ -1531,55 +1696,63 @@ export async function syncInventoryEquipSlots(
     }
   }
 
-  const { data: invData, error } = await (supabase
-    .from('character_inventory') as any)
-    .select('id, item_id, equip_slot, items(name)')
-    .eq('character_id', characterId);
+  if (!isSupabaseConfigured) return;
 
-  if (error || !invData) return;
+  let currentInvRows: any[] = Array.isArray(characterInventory) ? [...characterInventory] : [];
 
-  const itemsRef = getCachedEquipmentReference();
-  const invRows = invData as any[];
-  const slotEntries = Object.entries(equipmentSlots || {}).filter(([_, name]) => name && typeof name === 'string');
-  const assignedInvIds = new Set<string>();
+  try {
+    const { data: invData, error } = await (supabase
+      .from('character_inventory') as any)
+      .select('id, item_id, equip_slot, items(name)')
+      .eq('character_id', characterId);
 
-  // 1. Sincronizar equip_slot na tabela character_inventory
-  for (const [slotKey, itemName] of slotEntries) {
-    if (!itemName) continue;
-    const cleanSlotItemName = String(itemName).toLowerCase().trim();
+    if (!error && invData) {
+      currentInvRows = invData as any[];
+    }
 
-    const matchedInv = invRows.find((inv: any) => {
-      if (assignedInvIds.has(inv.id)) return false;
-      const rName = String(inv.items?.name || inv.name || (inv.item_id && itemsRef[inv.item_id] ? itemsRef[inv.item_id].name : '')).toLowerCase().trim();
-      return rName === cleanSlotItemName || (cleanSlotItemName.length > 2 && rName.includes(cleanSlotItemName)) || (rName.length > 2 && cleanSlotItemName.includes(rName));
-    });
+    const itemsRef = getCachedEquipmentReference();
+    const assignedInvIds = new Set<string>();
 
-    if (matchedInv) {
-      assignedInvIds.add(matchedInv.id);
-      if (matchedInv.equip_slot !== slotKey) {
-        matchedInv.equip_slot = slotKey;
-        await updateItemEquipSlot(matchedInv.id, slotKey);
+    // 1. Sincronizar equip_slot na tabela character_inventory
+    for (const [slotKey, itemName] of slotEntries) {
+      if (!itemName) continue;
+      const cleanSlotItemName = String(itemName).toLowerCase().trim();
+
+      const matchedInv = currentInvRows.find((inv: any) => {
+        if (assignedInvIds.has(inv.id)) return false;
+        const rName = String(inv.items?.name || inv.name || (inv.item_id && itemsRef[inv.item_id] ? itemsRef[inv.item_id].name : '')).toLowerCase().trim();
+        return rName === cleanSlotItemName || (cleanSlotItemName.length > 2 && rName.includes(cleanSlotItemName)) || (rName.length > 2 && cleanSlotItemName.includes(rName));
+      });
+
+      if (matchedInv) {
+        assignedInvIds.add(matchedInv.id);
+        if (matchedInv.equip_slot !== slotKey) {
+          matchedInv.equip_slot = slotKey;
+          await updateItemEquipSlot(matchedInv.id, slotKey);
+        }
       }
     }
-  }
 
-  for (const inv of invRows) {
-    if (!assignedInvIds.has(inv.id) && inv.equip_slot !== null) {
-      const memMatch = Array.isArray(characterInventory) ? characterInventory.find(i => i.id === inv.id) : null;
-      if (!memMatch || !memMatch.equip_slot) {
-        inv.equip_slot = null;
-        await updateItemEquipSlot(inv.id, null);
+    for (const inv of currentInvRows) {
+      if (!assignedInvIds.has(inv.id) && inv.equip_slot !== null) {
+        const memMatch = Array.isArray(characterInventory) ? characterInventory.find(i => i.id === inv.id) : null;
+        if (!memMatch || !memMatch.equip_slot) {
+          inv.equip_slot = null;
+          await updateItemEquipSlot(inv.id, null);
+        }
       }
     }
-  }
 
-  if (Array.isArray(characterInventory)) {
-    characterInventory.forEach((inv: any) => {
-      const rowMatch = invRows.find(r => r.id === inv.id);
-      if (rowMatch) {
-        inv.equip_slot = rowMatch.equip_slot;
-      }
-    });
+    if (Array.isArray(characterInventory)) {
+      characterInventory.forEach((inv: any) => {
+        const rowMatch = currentInvRows.find(r => r.id === inv.id);
+        if (rowMatch) {
+          inv.equip_slot = rowMatch.equip_slot;
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Erro em syncInventoryEquipSlots:', err);
   }
 
   // 2. Sincronizar equip_slot na tabela character_attacks
@@ -1603,7 +1776,7 @@ export async function syncInventoryEquipSlots(
       });
 
       if (!matchedAtk) {
-        const invMatch = invRows.find((inv: any) => {
+        const invMatch = currentInvRows.find((inv: any) => {
           const rName = String(inv.items?.name || inv.name || '').toLowerCase().trim();
           return rName === cleanSlotItemName || (cleanSlotItemName.length > 2 && rName.includes(cleanSlotItemName)) || (rName.length > 2 && cleanSlotItemName.includes(rName));
         });

@@ -629,14 +629,14 @@ export function useHeroCapabilities({
     try {
       if (newQty <= 0) {
         character.character_inventory.splice(idx, 1);
-        if (character.id) await removeItemFromInventory(ammoItem.id);
+        if (ammoItem.id) await removeItemFromInventory(ammoItem.id);
       } else {
         ammoItem.quantity = newQty;
-        if (character.id) await updateItemQuantity(ammoItem.id, newQty);
+        if (ammoItem.id) await updateItemQuantity(ammoItem.id, newQty);
       }
       if (onCharacterUpdated) await onCharacterUpdated();
     } catch (e) {
-      console.error('Erro ao consumir munição:', e);
+      console.warn('Aviso ao consumir munição:', e);
     }
   };
 
@@ -654,14 +654,14 @@ export function useHeroCapabilities({
     try {
       if (newQty <= 0) {
         character.character_inventory.splice(idx, 1);
-        if (character.id) await removeItemFromInventory(thrownItem.id);
+        if (thrownItem.id) await removeItemFromInventory(thrownItem.id);
       } else {
         thrownItem.quantity = newQty;
-        if (character.id) await updateItemQuantity(thrownItem.id, newQty);
+        if (thrownItem.id) await updateItemQuantity(thrownItem.id, newQty);
       }
       if (onCharacterUpdated) await onCharacterUpdated();
     } catch (e) {
-      console.error('Erro ao consumir arma de arremesso:', e);
+      console.warn('Aviso ao consumir arma de arremesso:', e);
     }
   };
 

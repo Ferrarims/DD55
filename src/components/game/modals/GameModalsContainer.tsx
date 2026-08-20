@@ -157,6 +157,8 @@ export interface GameModalsContainerProps {
   setIsShowMinimap: (val: boolean) => void;
   isShowZoomControls: boolean;
   setIsShowZoomControls: (val: boolean) => void;
+  proceduralWorldEnabled?: boolean;
+  setProceduralWorldEnabled?: (val: boolean) => void;
 
   // Opportunity Attack Modal
   pendingOpportunityAttack: any;
@@ -273,6 +275,8 @@ export const GameModalsContainer: React.FC<GameModalsContainerProps> = ({
   setIsShowMinimap,
   isShowZoomControls,
   setIsShowZoomControls,
+  proceduralWorldEnabled,
+  setProceduralWorldEnabled,
   pendingOpportunityAttack,
   setPendingOpportunityAttack,
   handleResolveOpportunityAttack,
@@ -481,6 +485,8 @@ export const GameModalsContainer: React.FC<GameModalsContainerProps> = ({
         setIsShowMinimap={setIsShowMinimap}
         isShowZoomControls={isShowZoomControls}
         setIsShowZoomControls={setIsShowZoomControls}
+        proceduralWorldEnabled={proceduralWorldEnabled}
+        setProceduralWorldEnabled={setProceduralWorldEnabled}
       />
 
       {/* Modal de Ataque de Oportunidade */}

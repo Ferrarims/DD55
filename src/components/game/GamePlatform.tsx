@@ -56,6 +56,8 @@ export const GamePlatform: React.FC<GamePlatformProps> = ({
     setIsShowMinimap,
     isShowZoomControls,
     setIsShowZoomControls,
+    proceduralWorldEnabled,
+    setProceduralWorldEnabled,
     floatingTexts,
     setFloatingTexts,
     addCombatLog,
@@ -660,6 +662,8 @@ export const GamePlatform: React.FC<GamePlatformProps> = ({
         setIsShowMinimap={setIsShowMinimap}
         isShowZoomControls={isShowZoomControls}
         setIsShowZoomControls={setIsShowZoomControls}
+        proceduralWorldEnabled={proceduralWorldEnabled}
+        setProceduralWorldEnabled={setProceduralWorldEnabled}
         pendingOpportunityAttack={pendingOpportunityAttack}
         setPendingOpportunityAttack={setPendingOpportunityAttack}
         handleResolveOpportunityAttack={handleResolveOpportunityAttack}

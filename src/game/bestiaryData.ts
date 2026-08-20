@@ -56,6 +56,10 @@ export function getBalancedEncounterForLevel(
   biome: string = 'Caverna',
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
 ): { monsters: MonsterTemplate[]; encounterDifficulty: string; totalCr: number } {
+  if (biome === 'Arena de Testes') {
+    return { monsters: [], encounterDifficulty: 'Arena de Testes (Sem Monstros)', totalCr: 0 };
+  }
+
   const level = Math.max(1, characterLevel);
 
   // Definir limite máximo de CR individual e orçamento total com base no nível do jogador

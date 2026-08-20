@@ -12,6 +12,8 @@ interface SettingsModalProps {
   setIsShowMinimap: (v: boolean) => void;
   isShowZoomControls: boolean;
   setIsShowZoomControls: (v: boolean) => void;
+  proceduralWorldEnabled?: boolean;
+  setProceduralWorldEnabled?: (v: boolean) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -24,7 +26,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isShowMinimap,
   setIsShowMinimap,
   isShowZoomControls,
-  setIsShowZoomControls
+  setIsShowZoomControls,
+  proceduralWorldEnabled = false,
+  setProceduralWorldEnabled,
 }) => {
   useModalKeyboard({
     onCancel: () => setShowSettingsModal(false),
@@ -99,6 +103,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               checked={isShowZoomControls}
               onChange={(e) => setIsShowZoomControls(e.target.checked)}
               className="w-5 h-5 accent-amber-500"
+            />
+          </label>
+          <label className="flex items-center justify-between p-3 bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-700/50 rounded-xl cursor-pointer transition">
+            <div className="flex flex-col">
+              <span className="font-bold text-indigo-200 text-sm flex items-center gap-1.5">
+                <span>🌐</span> Mundo Procedural
+              </span>
+              <span className="text-xs text-indigo-400/80">
+                Gerar terreno e chunks infinitos no modo exploração
+              </span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={proceduralWorldEnabled}
+              onChange={(e) => setProceduralWorldEnabled?.(e.target.checked)}
+              className="w-5 h-5 accent-indigo-500"
             />
           </label>
         </div>

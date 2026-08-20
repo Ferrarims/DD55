@@ -91,7 +91,9 @@ export function initializeArenaMap(
   const heroSpawn = proceduralMap.heroSpawn || { x: 75, y: 75 };
 
   // Gerar encontro balanceado para o nível do herói
-  const encounter = getBalancedEncounterForLevel(heroLevel, initialBiome, difficulty);
+  const encounter = initialBiome === 'Arena de Testes'
+    ? { monsters: [], encounterDifficulty: 'Arena de Testes (Sem Monstros)', totalCr: 0 }
+    : getBalancedEncounterForLevel(heroLevel, initialBiome, difficulty);
   const monsterTemplates = encounter.monsters;
 
   const usedPositions = new Set<string>();

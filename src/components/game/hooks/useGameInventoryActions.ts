@@ -51,7 +51,7 @@ export function useGameInventoryActions({
     if (!character || !character.character_inventory) return;
     const targetLower = itemNameToRemove.toLowerCase().trim();
     const idx = character.character_inventory.findIndex((inv: any) => {
-      const name = inv.items?.name?.toLowerCase().trim() || '';
+      const name = String(inv.items?.name || inv.name || inv.item_name || '').toLowerCase().trim();
       return name === targetLower || name.includes(targetLower) || targetLower.includes(name);
     });
 
@@ -62,14 +62,14 @@ export function useGameInventoryActions({
       try {
         if (newQty <= 0) {
           character.character_inventory.splice(idx, 1);
-          if (character.id) await removeItemFromInventory(item.id);
+          if (item.id) await removeItemFromInventory(item.id);
         } else {
           item.quantity = newQty;
-          if (character.id) await updateItemQuantity(item.id, newQty);
+          if (item.id) await updateItemQuantity(item.id, newQty);
         }
         if (onCharacterUpdated) await onCharacterUpdated();
       } catch (err) {
-        console.error('Erro ao remover consumível:', err);
+        console.warn('Aviso ao sincronizar remoção de consumível:', err);
       }
     }
   };

@@ -76,7 +76,7 @@ export const ArenaTopbar: React.FC = () => {
                       <option value="Floresta" className="bg-slate-900 text-slate-100">🌲 Floresta</option>
                       <option value="Pântano" className="bg-slate-900 text-slate-100">🐊 Pântano</option>
                       <option value="Deserto" className="bg-slate-900 text-slate-100">🏜️ Deserto</option>
-                      <option value="Arena de Testes" className="bg-slate-900 text-slate-100">🧪 Arena de Testes</option>
+                      <option value="Arena de Testes" className="bg-slate-900 text-slate-100">🧪 Arena de Testes (Sem Monstros)</option>
                     </select>
                   </div>
     

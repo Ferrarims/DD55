@@ -1,6 +1,7 @@
 import React from 'react';
 import { BiomeType, WeatherType } from '../../../game/types';
 import { WEATHER_CONFIGS } from '../../../game/weatherEffects';
+import { ProceduralWorldDebugPanel } from './ProceduralWorldDebugPanel';
 
 interface FullscreenMapOverlayProps {
   isFullscreenMap: boolean;
@@ -32,6 +33,9 @@ interface FullscreenMapOverlayProps {
   renderCanvasElement: () => React.ReactNode;
   handleFinishExploration: () => void;
   entities: any[];
+  proceduralWorldEnabled?: boolean;
+  setProceduralWorldEnabled?: (val: boolean) => void;
+  proceduralBridge?: any;
 }
 
 export const FullscreenMapOverlay: React.FC<FullscreenMapOverlayProps> = ({
@@ -64,6 +68,9 @@ export const FullscreenMapOverlay: React.FC<FullscreenMapOverlayProps> = ({
   renderCanvasElement,
   handleFinishExploration,
   entities,
+  proceduralWorldEnabled,
+  setProceduralWorldEnabled,
+  proceduralBridge,
 }) => {
   React.useEffect(() => {
     if (!isFullscreenMap) return;
@@ -186,7 +193,7 @@ export const FullscreenMapOverlay: React.FC<FullscreenMapOverlayProps> = ({
               <option value="Floresta" className="bg-slate-900 text-slate-100">🌲 Floresta</option>
               <option value="Pântano" className="bg-slate-900 text-slate-100">🐊 Pântano</option>
               <option value="Deserto" className="bg-slate-900 text-slate-100">🏜️ Deserto</option>
-              <option value="Arena de Testes" className="bg-slate-900 text-slate-100">🧪 Arena de Testes</option>
+              <option value="Arena de Testes" className="bg-slate-900 text-slate-100">🧪 Arena de Testes (Sem Monstros)</option>
             </select>
           </div>
 
@@ -319,6 +326,21 @@ export const FullscreenMapOverlay: React.FC<FullscreenMapOverlayProps> = ({
           <div className="p-1">
             {renderMinimapElement('block w-[110px] h-auto pointer-events-none rounded')}
           </div>
+        </div>
+      )}
+
+      {/* CONTROLE INFERIOR ESQUERDO: Debug do Mundo Procedural em Tela Cheia */}
+      {proceduralWorldEnabled && (
+        <div className="absolute bottom-4 left-4 z-50 max-w-[240px]">
+          <ProceduralWorldDebugPanel
+            enabled={Boolean(proceduralWorldEnabled)}
+            onToggleEnabled={(enabled) => setProceduralWorldEnabled?.(enabled)}
+            worldSeed={proceduralBridge?.worldSeed}
+            currentChunk={proceduralBridge?.currentChunk}
+            worldPosition={proceduralBridge?.worldPosition}
+            currentCell={proceduralBridge?.currentCell}
+            onResetToOrigin={proceduralBridge?.resetToOrigin}
+          />
         </div>
       )}
 

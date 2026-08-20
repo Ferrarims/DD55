@@ -40,13 +40,15 @@ export function drawIsometricTile({
   activeLargeForm,
   hero,
 }: DrawIsometricTileProps): number {
+  const displayBiome = biome === 'Arena de Testes' ? 'Floresta' : biome;
+
   // Determinar Altura do Bloco 3D (Extrusão Vertical)
   let blockH = 0;
   if (cell.terrain === 'wall') {
-    if (biome === 'Masmorra') {
+    if (displayBiome === 'Masmorra') {
       if (cell.obstacleType === 'pillar' || cell.obstacleType === 'cell_bars') blockH = 0;
       else blockH = isoTileH * 1.6; // Paredes de Pedra de Masmorra
-    } else if (biome === 'Arena de Testes' && cell.obstacleType === 'brick_wall') {
+    } else if (cell.obstacleType === 'brick_wall') {
       blockH = isoTileH * 1.6; // Muralha de cobertura total
     } else {
       // Árvores, rochas, cactos e vegetações em biomas abertos ficam no NÍVEL DO CHÃO
@@ -88,7 +90,7 @@ export function drawIsometricTile({
         rightColor = '#94a3b8';
       }
     }
-  } else if (biome === 'Floresta') {
+  } else if (displayBiome === 'Floresta') {
     if (!isNightOrDarkEnv) {
       // DIA (CLARO) - Grama vibrante e ensolarada
       if (cell.terrain === 'difficult') {
@@ -104,7 +106,7 @@ export function drawIsometricTile({
         topColor = '#15803d'; leftColor = '#14532d'; rightColor = '#166534';
       }
     }
-  } else if (biome === 'Deserto') {
+  } else if (displayBiome === 'Deserto') {
     if (!isNightOrDarkEnv) {
       // DIA (CLARO) - Areia dourada quente ensolarada
       if (cell.terrain === 'difficult') {
@@ -120,7 +122,7 @@ export function drawIsometricTile({
         topColor = '#d97706'; leftColor = '#92400e'; rightColor = '#f59e0b';
       }
     }
-  } else if (biome === 'Pântano') {
+  } else if (displayBiome === 'Pântano') {
     if (!isNightOrDarkEnv) {
       // DIA (CLARO) - Lama e musgo ensolarado
       if (cell.terrain === 'difficult') {
@@ -136,7 +138,7 @@ export function drawIsometricTile({
         topColor = '#0f766e'; leftColor = '#042f2e'; rightColor = '#115e59';
       }
     }
-  } else if (biome === 'Masmorra') {
+  } else if (displayBiome === 'Masmorra') {
     if (cell.terrain === 'wall') {
       topColor = cell.obstacleType === 'pillar' ? '#64748b' : '#3b485e';
       leftColor = '#1c2536';
@@ -155,10 +157,6 @@ export function drawIsometricTile({
     topColor = '#0284c7'; // Água
     leftColor = '#075985';
     rightColor = '#0369a1';
-  } else if (biome === 'Arena de Testes' && cell.terrain === 'wall') {
-    topColor = '#475569';
-    leftColor = '#1e293b';
-    rightColor = '#334155';
   }
 
   // Destaque do Caminho em 3D e da área 2x2 do Golias em Forma Grande

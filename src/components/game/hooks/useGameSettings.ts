@@ -17,13 +17,18 @@ export function useGameSettings() {
     const saved = localStorage.getItem('game_isShowZoomControls');
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const [proceduralWorldEnabled, setProceduralWorldEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('game_proceduralWorldEnabled');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
 
   useEffect(() => {
     localStorage.setItem('game_isAmbientSoundEnabled', JSON.stringify(isAmbientSoundEnabled));
     localStorage.setItem('game_isSfxEnabled', JSON.stringify(isSfxEnabled));
     localStorage.setItem('game_isShowMinimap', JSON.stringify(isShowMinimap));
     localStorage.setItem('game_isShowZoomControls', JSON.stringify(isShowZoomControls));
-  }, [isAmbientSoundEnabled, isSfxEnabled, isShowMinimap, isShowZoomControls]);
+    localStorage.setItem('game_proceduralWorldEnabled', JSON.stringify(proceduralWorldEnabled));
+  }, [isAmbientSoundEnabled, isSfxEnabled, isShowMinimap, isShowZoomControls, proceduralWorldEnabled]);
 
   return {
     isAmbientSoundEnabled,
@@ -33,6 +38,8 @@ export function useGameSettings() {
     isShowMinimap,
     setIsShowMinimap,
     isShowZoomControls,
-    setIsShowZoomControls
+    setIsShowZoomControls,
+    proceduralWorldEnabled,
+    setProceduralWorldEnabled
   };
 }

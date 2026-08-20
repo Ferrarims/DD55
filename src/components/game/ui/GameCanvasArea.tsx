@@ -3,6 +3,7 @@ import { MapControlsOverlay } from './MapControlsOverlay';
 import { MinimapOverlay } from './MinimapOverlay';
 import { GridLegend } from './GridLegend';
 import { FullscreenMapOverlay } from './FullscreenMapOverlay';
+import { ProceduralWorldDebugPanel } from './ProceduralWorldDebugPanel';
 import { useGameContext } from '../context/GameContext';
 
 export const GameCanvasArea: React.FC = () => {
@@ -42,6 +43,9 @@ export const GameCanvasArea: React.FC = () => {
     totalGameTurns,
     handleFinishExploration,
     entities,
+    proceduralWorldEnabled,
+    setProceduralWorldEnabled,
+    proceduralBridge,
   } = context;
 
   return (
@@ -94,6 +98,21 @@ export const GameCanvasArea: React.FC = () => {
                 renderMinimapElement={renderMinimapElement}
               />
             )}
+
+            {/* Painel de Debug do Mundo Procedural */}
+            {!isFullscreenMap && proceduralWorldEnabled && (
+              <div className="absolute bottom-2 left-2 z-20 max-w-[240px]">
+                <ProceduralWorldDebugPanel
+                  enabled={Boolean(proceduralWorldEnabled)}
+                  onToggleEnabled={(enabled) => setProceduralWorldEnabled?.(enabled)}
+                  worldSeed={proceduralBridge?.worldSeed}
+                  currentChunk={proceduralBridge?.currentChunk}
+                  worldPosition={proceduralBridge?.worldPosition}
+                  currentCell={proceduralBridge?.currentCell}
+                  onResetToOrigin={proceduralBridge?.resetToOrigin}
+                />
+              </div>
+            )}
           </div>
 
           {/* Legenda do Grid */}
@@ -132,6 +151,9 @@ export const GameCanvasArea: React.FC = () => {
         renderCanvasElement={renderCanvasElement}
         handleFinishExploration={handleFinishExploration}
         entities={entities}
+        proceduralWorldEnabled={proceduralWorldEnabled}
+        setProceduralWorldEnabled={setProceduralWorldEnabled}
+        proceduralBridge={proceduralBridge}
       />
     </>
   );

@@ -138,12 +138,17 @@ export function generateProceduralArena(
     grid.push(row);
   }
 
+  // Bioma efetivo para geração de terreno e obstáculos (Arena de Testes usa biomas normais sem monstros)
+  const effectiveBiome: BiomeType = biome === 'Arena de Testes'
+    ? (['Floresta', 'Caverna', 'Masmorra', 'Pântano', 'Deserto'][Math.floor(Math.random() * 5)] as BiomeType)
+    : biome;
+
   // Paredes externas de borda
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (r === 0 || r === rows - 1 || c === 0 || c === cols - 1) {
         grid[r][c].terrain = 'wall';
-        grid[r][c].obstacleType = biome === 'Floresta' ? 'tree' : biome === 'Deserto' ? 'rock' : biome === 'Pântano' ? 'tree' : biome === 'Masmorra' ? 'brick_wall' : 'rock';
+        grid[r][c].obstacleType = effectiveBiome === 'Floresta' ? 'tree' : effectiveBiome === 'Deserto' ? 'rock' : effectiveBiome === 'Pântano' ? 'tree' : effectiveBiome === 'Masmorra' ? 'brick_wall' : 'rock';
         grid[r][c].movementCost = Infinity;
         grid[r][c].obstacleWidth = 1;
         grid[r][c].obstacleHeight = 1;
@@ -155,51 +160,7 @@ export function generateProceduralArena(
   }
 
   // 2. Aplicar algoritmo baseado no bioma com suporte a obstáculos de múltiplos tamanhos
-  if (biome === 'Arena de Testes') {
-    // Arena especial com inimigos cercados por água para testar coberturas
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (r === 0 || r === rows - 1 || c === 0 || c === cols - 1) {
-          grid[r][c].terrain = 'wall';
-          grid[r][c].obstacleType = 'rock';
-          grid[r][c].movementCost = Infinity;
-        }
-      }
-    }
-
-    const mSpawns = [
-      { x: 83, y: 69 }, // No cover
-      { x: 83, y: 73 }, // Half cover
-      { x: 83, y: 77 }, // 3/4 cover
-      { x: 83, y: 81 }, // Total cover
-    ];
-
-    // Surround each with water
-    mSpawns.forEach((spawn, idx) => {
-      if (spawn.x < cols - 1 && spawn.y < rows - 1) {
-        for (let r = spawn.y - 1; r <= spawn.y + 1; r++) {
-          for (let c = spawn.x - 1; c <= spawn.x + 1; c++) {
-            if (r >= 0 && r < rows && c >= 0 && c < cols) {
-              if (!(r === spawn.y && c === spawn.x)) {
-                grid[r][c].terrain = 'water';
-                grid[r][c].movementCost = Infinity; // Block movement completely
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // Place Obstacles
-    // M1: No cover -> no obstacle
-    // M2: Half cover (fallen log)
-    placeMultiCellObstacle(grid, 81, 72, 1, 3, 'fallen_log', 'log_v', 1.2);
-    // M3: 3/4 cover (tree)
-    placeMultiCellObstacle(grid, 81, 76, 1, 3, 'tree', 'pine_tree', 1.5);
-    // M4: Total cover (wall)
-    placeMultiCellObstacle(grid, 81, 80, 1, 3, 'brick_wall', 'brick_wall', 1.0);
-
-  } else if (biome === 'Caverna') {
+  if (effectiveBiome === 'Caverna') {
     // 2.1 Caverna: Monólitos 3x3, Rochas Gigantes 2x2, Cristas/Formações 1x2 e 2x1, Rochas 1x1 variadas
     const giantAttempts = Math.max(1, Math.floor((cols * rows) / 900));
     for (let i = 0; i < giantAttempts * 3; i++) {
@@ -737,15 +698,8 @@ export function generateProceduralArena(
 
   if (biome === 'Arena de Testes') {
     heroSpawn = { x: 75, y: 75 };
-    clearAreaAround(grid, heroSpawn.x, heroSpawn.y);
-
-    // Explicit monster spawns to match obstacles
-    monsterSpawns.push({ x: 83, y: 69 }); // No cover
-    monsterSpawns.push({ x: 83, y: 73 }); // Half cover
-    monsterSpawns.push({ x: 83, y: 77 }); // 3/4 cover
-    monsterSpawns.push({ x: 83, y: 81 }); // Total cover
-
-    // Ensure area around monsters is clear of walls, but we already placed water manually
+    clearAreaAround(grid, heroSpawn.x, heroSpawn.y, 4);
+    monsterSpawns = [];
   } else {
     clearAreaAround(grid, heroSpawn.x, heroSpawn.y);
     // 4. Pontos de spawn para os monstros (lado direito do grid)

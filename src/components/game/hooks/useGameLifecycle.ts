@@ -362,7 +362,7 @@ export function useGameLifecycle({
 
   // 10. Lógica do Mapa Infinito: Spawnar novos monstros se afastar do último encontro
   useEffect(() => {
-    if (isHeroDead) return;
+    if (isHeroDead || biome === 'Arena de Testes') return;
     const hero = entities.find(e => e.type === 'hero');
     if (!hero) return;
 

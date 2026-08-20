@@ -20,6 +20,7 @@ import { useHeroSpecialAbilitiesState } from "./platform/useHeroSpecialAbilities
 import { useArenaAmbientSound } from "./platform/useArenaAmbientSound";
 import { useHeroWeaponFeatsConfig } from "./platform/useHeroWeaponFeatsConfig";
 import { useArenaCombatTargeting } from "./platform/useArenaCombatTargeting";
+import { useProceduralExplorationBridge } from '../../../game/world/useProceduralExplorationBridge';
 
 export interface UseGamePlatformStateProps {
   character: any;
@@ -47,8 +48,15 @@ export function useGamePlatformState({
     isShowMinimap,
     setIsShowMinimap,
     isShowZoomControls,
-    setIsShowZoomControls
+    setIsShowZoomControls,
+    proceduralWorldEnabled,
+    setProceduralWorldEnabled
   } = useGameSettings();
+
+  const proceduralBridge = useProceduralExplorationBridge({
+    enabled: proceduralWorldEnabled,
+    character,
+  });
 
   const { floatingTexts, setFloatingTexts } = useFloatingTexts();
 
@@ -791,6 +799,9 @@ export function useGamePlatformState({
     setIsFullscreenMap,
     showSettingsModal,
     setShowSettingsModal,
+    proceduralWorldEnabled,
+    setProceduralWorldEnabled,
+    proceduralBridge,
     showTacticalMindAlertModal,
     setShowTacticalMindAlertModal,
     showRelentlessModal,

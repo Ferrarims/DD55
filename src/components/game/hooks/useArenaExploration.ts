@@ -252,6 +252,7 @@ export function useArenaExploration({
 
   // Spawnar monstros após alguns passos de exploração (aleatório entre 5 e 10 passos)
   useEffect(() => {
+    if (biome === 'Arena de Testes') return;
     if (!hasSpawnedMonstersRef.current && movementStepsCount >= spawnStepsThresholdRef.current && pendingMonstersRef.current.length > 0) {
       hasSpawnedMonstersRef.current = true;
       setIsBattleOver(false);
@@ -531,7 +532,12 @@ export function useArenaExploration({
       heroSpeedGridCells
     );
 
-    pendingMonstersRef.current = initMapResult.monsters;
+    if (chosenBiome === 'Arena de Testes') {
+      pendingMonstersRef.current = [];
+      hasSpawnedMonstersRef.current = true;
+    } else {
+      pendingMonstersRef.current = initMapResult.monsters;
+    }
 
     setEntities([heroEntity]);
     setActiveEntityIndex(0);
@@ -540,7 +546,9 @@ export function useArenaExploration({
     addCombatLog(
       'Mestre da Arena',
       `🗺️ MAPA #${currentMapNumber}: ${chosenBiome.toUpperCase()} (Dificuldade: ${activeDifficulty.toUpperCase()})`,
-      `Você entrou na área. O terreno começa silencioso... Avance alguns passos para explorar o território e encontrar inimigos.`,
+      chosenBiome === 'Arena de Testes'
+        ? `Bem-vindo à Arena de Testes Pacífica. Nenhum monstro surgirá neste mapa. Aproveite para testar comandos, feitiços e movimentação.`
+        : `Você entrou na área. O terreno começa silencioso... Avance alguns passos para explorar o território e encontrar inimigos.`,
       'system'
     );
   };
