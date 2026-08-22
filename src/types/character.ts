@@ -208,4 +208,5 @@ export interface PlayerStats {
   subclass?: string | null;
   subclass_locked?: boolean;
   class_name?: string;
+  conditions?: string[];
 }

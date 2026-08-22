@@ -93,7 +93,6 @@ export const PendingLevelChoicesSection: React.FC<PendingLevelChoicesSectionProp
                 </div>
                 <div className="pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-500">
                   <span>Talento de Estilo de Luta</span>
-                  <span>D&amp;D 5.5e</span>
                 </div>
               </button>
             ))}

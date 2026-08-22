@@ -196,7 +196,7 @@ export function useGameInventoryActions({
       setEntities(prev => prev.map(e => e.id === hero.id ? { ...e, remainingMovement: e.remainingMovement + 3, hasBonusAction: false } : e));
       addCombatLog(hero.name, `⚡ ${item.name.toUpperCase()}!`, 'Tomou o elixir de velocidade para ganhar +4.5m de deslocamento livre.', 'system');
     } else if (item.effectType === 'ac') {
-      setEntities(prev => prev.map(e => e.id === hero.id ? { ...e, ac: e.armor_class + 3, hasBonusAction: false } : e));
+      setEntities(prev => prev.map(e => e.id === hero.id ? { ...e, ac: (e.ac ?? e.armor_class) + 3, armor_class: (e.ac ?? e.armor_class) + 3, hasBonusAction: false } : e));
       addCombatLog(hero.name, `📜 ${item.name.toUpperCase()}!`, 'Ativou proteção mágica (+3 na CA até o próximo turno).', 'system');
     } else if (item.effectType === 'kit') {
       const pb = 2 + Math.floor(((character.level || 1) - 1) / 4);

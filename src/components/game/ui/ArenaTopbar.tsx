@@ -50,7 +50,7 @@ export const ArenaTopbar: React.FC = () => {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-base md:text-lg font-black text-amber-400" style={{ fontFamily: 'Georgia, serif' }}>
-                    Arena D&D 5.5e
+                    Arena de Combate
                   </h1>
     
                   {/* Caixas de Seleção Diretas para Mapa (Bioma), Horário (Dia/Noite) e Clima Atmosférico */}

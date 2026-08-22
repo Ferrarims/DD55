@@ -34,31 +34,33 @@ export const CombatStatsSection: React.FC<CombatStatsSectionProps> = ({
       {/* Estatísticas Rápidas de Combate */}
       <div className="grid grid-cols-7 gap-1">
         {/* PV Atual / Max */}
-        <div
+        <button
+          type="button"
           onClick={() => setShowHpAudit(true)}
-          className="bg-slate-800 border border-red-900/50 rounded-lg p-2 flex flex-col justify-between cursor-pointer hover:border-red-500/80 transition-all"
-          title="Clique para abrir a Auditoria de PV"
+          className="bg-slate-800 border border-red-900/50 hover:border-red-500 rounded-lg p-2 flex flex-col justify-between cursor-pointer transition-all shadow-sm hover:shadow-red-500/20 group text-left w-full focus:outline-none focus:ring-1 focus:ring-red-500"
+          title="Clique para ver o cálculo detalhado de Pontos de Vida (PV)"
         >
-          <div className="flex justify-between items-center mb-0.5">
-            <span className="text-[9px] font-extrabold uppercase text-red-400 tracking-wider flex items-center justify-center gap-0.5">
-              <span>PV</span> <span className="text-[8px] text-red-400 underline">⚙️</span>
+          <div className="flex justify-between items-center mb-0.5 w-full">
+            <span className="text-[9px] font-extrabold uppercase text-red-400 tracking-wider flex items-center gap-1 group-hover:text-red-300 transition-colors">
+              <span>PV</span>
+              <span className="text-[9px] text-red-400 group-hover:rotate-45 transition-transform">⚙️</span>
             </span>
-            <span className="text-[9px] text-slate-400">
-              Máx: {hpBreakdown.total}
+            <span className="text-[9px] text-slate-400 group-hover:text-slate-300">
+              Máx: {hpBreakdown?.totalMaxHp ?? hpBreakdown?.total ?? 0}
             </span>
           </div>
-          <div className="flex items-center justify-center h-full">
-            <div className="text-sm font-black text-white text-center flex items-center justify-center gap-1">
-              {currentHp} <span className="text-slate-500 text-[10px]">/ {hpBreakdown.total}</span>
+          <div className="flex items-center justify-center h-full w-full">
+            <div className="text-sm font-black text-white text-center flex items-center justify-center gap-1 group-hover:scale-105 transition-transform">
+              {currentHp} <span className="text-slate-500 text-[10px]">/ {hpBreakdown?.totalMaxHp ?? hpBreakdown?.total ?? 0}</span>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Classe de Armadura (CA) */}
         <div
           onClick={() => setShowAcModal(true)}
           className="bg-slate-800 border border-slate-700 hover:border-amber-500/80 rounded-lg p-2 text-center flex flex-col justify-center relative group cursor-pointer transition-all shadow-sm hover:shadow-amber-500/10"
-          title="Clique para abrir a Auditoria do Motor de Regras de CA (D&D 2024 / 5.5e)"
+          title="Clique para abrir a Auditoria do Motor de Regras de CA"
         >
           <span className="text-[9px] font-extrabold uppercase text-slate-400 flex items-center justify-center gap-0.5">
             <span>CA</span> <span className="text-[8px] text-amber-400 underline">⚙️</span>

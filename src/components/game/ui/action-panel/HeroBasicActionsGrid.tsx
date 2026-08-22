@@ -49,7 +49,7 @@ export const HeroBasicActionsGrid: React.FC = () => {
                 ? 'border-red-500 bg-red-950/80 hover:bg-red-900 text-red-100 animate-pulse cursor-pointer'
                 : 'border-slate-800 bg-slate-950 text-slate-600 opacity-60 cursor-not-allowed'
             }`}
-            title={`Levantar-se: Gasta metade do seu deslocamento (${Math.floor(activeEntity.speed / 2) * 1.5}m) para se levantar e remover a condição Caído (Prone).`}
+            title={`Levantar-se: Gasta metade do seu deslocamento (${Math.floor(activeEntity.speed / 2) * 1.5}m) para se levantar e remover a condição Caído.`}
           >
             <span>💥</span>
             <span>Levantar-se (Gasta {Math.floor(activeEntity.speed / 2) * 1.5}m)</span>
@@ -57,7 +57,7 @@ export const HeroBasicActionsGrid: React.FC = () => {
         );
       })()}
 
-      {/* Escapar do Agarrão (Escape Grapple) - Apenas exibido se estiver Agarrado */}
+      {/* Escapar do Agarrão - Apenas exibido se estiver Agarrado */}
       {activeEntity.conditions?.some(c => c === 'Agarrado' || c === 'Agarrada' || c === 'Grappled') && (() => {
         const inCombat = !isBattleOver;
         const isHeroTurn = !inCombat || activeEntity?.type === 'hero';
@@ -81,9 +81,9 @@ export const HeroBasicActionsGrid: React.FC = () => {
         );
       })()}
 
-      {/* Dash, Esconder, Esquivar e Desengajar em Grade 2x2 */}
+      {/* Disparada, Esconder, Esquivar e Desengajar em Grade 2x2 */}
       <div className="grid grid-cols-2 gap-1.5">
-        {/* 11. Disparada (Dash) */}
+        {/* 11. Disparada */}
         {(() => {
           const inCombat = !isBattleOver;
           const isHeroTurn = !inCombat || (activeEntity?.type === 'hero' && !activeEntity?.isDead);
@@ -97,15 +97,15 @@ export const HeroBasicActionsGrid: React.FC = () => {
                   ? 'bg-blue-900/60 hover:bg-blue-800/80 text-blue-200 border-blue-500/50 cursor-pointer'
                   : 'bg-slate-950 border-slate-800 text-slate-600 opacity-60 cursor-not-allowed'
               }`}
-              title="Ação de Disparada (Dash): Dobra sua capacidade de movimento neste turno para alcançar posições distantes."
+              title="Ação de Disparada: Dobra sua capacidade de movimento neste turno para alcançar posições distantes."
             >
-              <span className="truncate">🏃 Dash</span>
+              <span className="truncate">🏃 Disparada</span>
               <span className="text-[9px] text-blue-300 opacity-80 shrink-0">+9m</span>
             </button>
           );
         })()}
 
-        {/* 12. Esconder (Hide) */}
+        {/* 12. Esconder */}
         {(() => {
           const inCombat = !isBattleOver;
           const isHeroTurn = !inCombat || (activeEntity?.type === 'hero' && !activeEntity?.isDead);
@@ -147,8 +147,8 @@ export const HeroBasicActionsGrid: React.FC = () => {
             : (isDay && !isHalfling)
             ? "Personagens comuns não podem se esconder à luz do dia (necessário estar no escuro e sobre vegetação)."
             : (isDay && isHalfling && !isNearObstacle)
-            ? "Pequeninos de dia precisam estar sobre vegetação E ao lado de um obstáculo/árvore/rocha para se esconder (Naturally Stealthy)."
-            : "Ação de Esconder (Hide): Tenta se ocultar (CD 15 Destreza). Ganha condição Invisível em caso de sucesso.";
+            ? "Pequeninos de dia precisam estar sobre vegetação E ao lado de um obstáculo/árvore/rocha para se esconder."
+            : "Ação de Esconder: Tenta se ocultar (CD 15 Destreza). Ganha condição Invisível em caso de sucesso.";
 
           return (
             <button
@@ -167,7 +167,7 @@ export const HeroBasicActionsGrid: React.FC = () => {
           );
         })()}
 
-        {/* 13. Esquivar (Dodge) */}
+        {/* 13. Esquivar */}
         {(() => {
           const inCombat = !isBattleOver;
           const isHeroTurn = !inCombat || (activeEntity?.type === 'hero' && !activeEntity?.isDead);
@@ -181,7 +181,7 @@ export const HeroBasicActionsGrid: React.FC = () => {
                   ? 'bg-emerald-900/60 hover:bg-emerald-800/80 text-emerald-200 border-emerald-500/50 cursor-pointer'
                   : 'bg-slate-950 border-slate-800 text-slate-600 opacity-60 cursor-not-allowed'
               }`}
-              title="Ação de Esquiva (Dodge): Concentra-se em evitar ataques. Impõe Desvantagem nas jogadas de ataque inimigas contra você e Vantagem em testes de resistência de Destreza até o próximo turno."
+              title="Ação de Esquiva: Concentra-se em evitar ataques. Impõe Desvantagem nas jogadas de ataque inimigas contra você e Vantagem em testes de resistência de Destreza até o próximo turno."
             >
               <span className="truncate">🛡️ Esquivar</span>
               <span className="text-[9px] text-emerald-300 opacity-80 shrink-0">Desv.</span>
@@ -189,7 +189,7 @@ export const HeroBasicActionsGrid: React.FC = () => {
           );
         })()}
 
-        {/* 14. Desengajar (Disengage) */}
+        {/* 14. Desengajar */}
         {(() => {
           const inCombat = !isBattleOver;
           const isHeroTurn = !inCombat || (activeEntity?.type === 'hero' && !activeEntity?.isDead);
@@ -207,11 +207,58 @@ export const HeroBasicActionsGrid: React.FC = () => {
               title={
                 !isThreatened
                   ? "Desengajar só está disponível quando você estiver em área ameaçada por um inimigo (adjacente)."
-                  : "Ação de Desengajar (Disengage): Você recua taticamente. Seu movimento não provocará ataques de oportunidade pelo resto do turno."
+                  : "Ação de Desengajar: Você recua taticamente. Seu movimento não provocará ataques de oportunidade pelo resto do turno."
               }
             >
               <span className="truncate">💨 Desengajar</span>
               <span className="text-[9px] text-indigo-300 opacity-80 shrink-0">Recuar</span>
+            </button>
+          );
+        })()}
+      </div>
+
+      {/* Ações de Perícias Úteis no Campo (Investigação & Medicina) */}
+      <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+        {/* Investigar Área (Investigação / Percepção Ativa) */}
+        {(() => {
+          const inCombat = !isBattleOver;
+          const isHeroTurn = !inCombat || (activeEntity?.type === 'hero' && !activeEntity?.isDead);
+          const canSearch = isHeroTurn && (isBattleOver || activeEntity.hasAction);
+          return (
+            <button
+              onClick={useGameContext().handleHeroSearchArea}
+              disabled={!canSearch}
+              className={`py-1.5 px-2 rounded-xl border font-bold text-[11px] flex items-center justify-between gap-1 shadow transition ${
+                canSearch
+                  ? 'bg-amber-950/60 hover:bg-amber-900/80 text-amber-200 border-amber-500/50 cursor-pointer'
+                  : 'bg-slate-950 border-slate-800 text-slate-600 opacity-60 cursor-not-allowed'
+              }`}
+              title="Ação de Investigar Área: Rola um teste ativo de Investigação/Percepção para procurar armadilhas e mecanismos ocultos em um raio de 6 células."
+            >
+              <span className="truncate">🔍 Investigar</span>
+              <span className="text-[9px] text-amber-400 opacity-80 shrink-0">Perícias</span>
+            </button>
+          );
+        })()}
+
+        {/* Primeiros Socorros (Medicina CD 10) */}
+        {(() => {
+          const inCombat = !isBattleOver;
+          const isHeroTurn = !inCombat || (activeEntity?.type === 'hero' && !activeEntity?.isDead);
+          const canFirstAid = isHeroTurn && (isBattleOver || activeEntity.hasAction);
+          return (
+            <button
+              onClick={useGameContext().handleHeroFirstAid}
+              disabled={!canFirstAid}
+              className={`py-1.5 px-2 rounded-xl border font-bold text-[11px] flex items-center justify-between gap-1 shadow transition ${
+                canFirstAid
+                  ? 'bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-200 border-emerald-500/50 cursor-pointer'
+                  : 'bg-slate-950 border-slate-800 text-slate-600 opacity-60 cursor-not-allowed'
+              }`}
+              title="Primeiros Socorros (Medicina CD 10): Aplica bandagens no campo para estancar ferimentos e conceder PV Temporários (1d4 + Mod. Sabedoria)."
+            >
+              <span className="truncate">🩺 Curativos</span>
+              <span className="text-[9px] text-emerald-400 opacity-80 shrink-0">Medicina</span>
             </button>
           );
         })()}

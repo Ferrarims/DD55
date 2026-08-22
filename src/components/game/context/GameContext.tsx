@@ -30,7 +30,10 @@ export interface GameContextType extends GamePlatformState {
   handleHeroDisengage: () => void;
   handleHeroStandUp: () => void;
   handleHeroEscapeGrapple: () => void;
+  handleHeroSearchArea?: () => void;
+  handleHeroFirstAid?: () => void;
   advanceTurn: () => void;
+  [key: string]: any;
 }
 
 // Um contexto com tipagem estrita para armazenar todo o estado do GamePlatform.

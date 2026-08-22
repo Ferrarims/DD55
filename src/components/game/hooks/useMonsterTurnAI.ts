@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { CombatEntity, CellData, BiomeType, GridPosition } from '../../../game/types';
 import { executeMonsterTurnAI } from '../../../game/monsterAI';
-import { executeAttack } from '../../../game/combatEngine';
-import { getWeaponMaxRangeCells, getDistanceBetweenEntities, hasThrownProperty } from '../../../game/combatUtils';
+import { checkHeroOpportunityAttack } from './monsterAI/checkHeroOpportunityAttack';
+import { processMonsterAttackAndVisuals } from './monsterAI/processMonsterAttackEffects';
 
 export interface UseMonsterTurnAIProps {
   activeEntity: CombatEntity | undefined;
@@ -100,54 +100,21 @@ export function useMonsterTurnAI(props: UseMonsterTurnAIProps) {
             hero.y
           );
 
-          let heroOpportunityResult: any = null;
-          let finalMonsterHp = currentActive.currentHp;
-          let isMonsterDead = false;
-
-          const canHeroSeeMonster = !hero.conditions?.some(c => c === 'Cego' || c === 'Blinded') &&
-                                    !currentActive.conditions?.some(c => c === 'Invisível' || c === 'Invisible');
-          const isHeroIncapacitated = hero.conditions?.some(c => 
-            c === 'Incapacitado' || c === 'Incapacitated' ||
-            c === 'Paralisado' || c === 'Paralyzed' ||
-            c === 'Inconsciente' || c === 'Unconscious' ||
-            c === 'Atordoado' || c === 'Stunned' ||
-            c === 'Petrificado' || c === 'Petrified'
-          );
-
           // Checagem de Ataque de Oportunidade do Herói
-          let triggeredOpportunityStep: GridPosition | null = null;
-          let atkToUse = currentProps.currentSelectedAttack;
-          let heroReach = 1;
+          const { triggeredStep, atkToUse } = checkHeroOpportunityAttack({
+            hero,
+            monster: currentActive,
+            pathTaken: decision.pathTaken,
+            currentSelectedAttack: currentProps.currentSelectedAttack,
+            characterRace: currentProps.character?.race,
+            activeLargeForm: currentProps.activeLargeForm,
+          });
 
-          if (hero.hasReaction && !isHeroIncapacitated && canHeroSeeMonster && !currentActive.conditions?.includes('Desengajando') && !currentActive.conditions?.includes('Voando') && decision.pathTaken && decision.pathTaken.length > 0) {
-            if (atkToUse) {
-              heroReach = getWeaponMaxRangeCells(atkToUse);
-              const isRanged = getWeaponMaxRangeCells(atkToUse) > 1 && !hasThrownProperty(atkToUse) && 
-                                (atkToUse.range?.toLowerCase().includes('/') || atkToUse.properties?.toLowerCase().includes('munição') || atkToUse.properties?.toLowerCase().includes('ammunition') || atkToUse.properties?.toLowerCase().includes('distância') || atkToUse.properties?.toLowerCase().includes('ranged'));
-              if (isRanged) {
-                heroReach = 1;
-                atkToUse = undefined;
-              }
-            }
-
-            let wasInReach = getDistanceBetweenEntities(hero, currentActive, currentProps.character?.race, currentProps.activeLargeForm) <= heroReach;
-            let prevStep = { x: currentActive.x, y: currentActive.y };
-            for (let step of decision.pathTaken) {
-              const isNowInReach = getDistanceBetweenEntities(hero, { ...currentActive, x: step.x, y: step.y }, currentProps.character?.race, currentProps.activeLargeForm) <= heroReach;
-              if (wasInReach && !isNowInReach) {
-                triggeredOpportunityStep = prevStep;
-                break;
-              }
-              wasInReach = isNowInReach;
-              prevStep = step;
-            }
-          }
-
-          if (triggeredOpportunityStep && currentProps.onTriggerOpportunityAttack) {
+          if (triggeredStep && currentProps.onTriggerOpportunityAttack) {
             isExecutingRef.current = null;
             currentProps.onTriggerOpportunityAttack({
               monster: currentActive,
-              triggerStep: triggeredOpportunityStep,
+              triggerStep: triggeredStep,
               decision,
               hero,
               atkToUse,
@@ -162,93 +129,28 @@ export function useMonsterTurnAI(props: UseMonsterTurnAIProps) {
               if (ent.id === currentActive.id) {
                 return {
                   ...ent,
-                  x: isMonsterDead && heroOpportunityResult ? heroOpportunityResult.triggerStep.x : decision.newPosition.x,
-                  y: isMonsterDead && heroOpportunityResult ? heroOpportunityResult.triggerStep.y : decision.newPosition.y,
-                  currentHp: finalMonsterHp,
-                  isDead: isMonsterDead,
+                  x: decision.newPosition.x,
+                  y: decision.newPosition.y,
+                  currentHp: currentActive.currentHp,
+                  isDead: false,
                   hasAction: false,
                   remainingMovement: 0
                 };
               }
-              let nextEnt = { ...ent };
-              if (ent.type === 'hero' && heroOpportunityResult) {
-                nextEnt.hasReaction = false;
-              }
-              if (!isMonsterDead && decision.attackExecuted && decision.attackResult && decision.attackResult.hit && decision.attackResult.damage > 0 && ent.type === 'hero') {
-                setTimeout(() => {
-                  currentProps.processDamageAndCheckKill(
-                    'hero',
-                    decision.attackResult!.damage,
-                    currentActive.name,
-                    'Cortante',
-                    currentActive.id
-                  );
-                }, 50);
-              }
-              return nextEnt;
+              return ent;
             })
           );
 
-          if (heroOpportunityResult) {
-            currentProps.addCombatLog(
-              hero.name,
-              heroOpportunityResult.logTitle,
-              heroOpportunityResult.logDetail,
-              heroOpportunityResult.hit ? 'damage' : 'attack'
-            );
-            currentProps.addCombatLog(
-              hero.name,
-              '🛡️ REAÇÃO GASTA',
-              'Você utilizou sua Reação para realizar um Ataque de Oportunidade contra o inimigo em movimento.',
-              'system'
-            );
-            currentProps.triggerAttackVisualEffect(
-              { x: hero.x, y: hero.y },
-              { x: heroOpportunityResult.triggerStep.x, y: heroOpportunityResult.triggerStep.y },
-              false,
-              heroOpportunityResult.hit,
-              heroOpportunityResult.damage,
-              heroOpportunityResult.isCritical
-            );
-          }
-
           if (decision.newPosition.x !== currentActive.x || decision.newPosition.y !== currentActive.y) {
-            if (!(isMonsterDead && heroOpportunityResult)) {
-              currentProps.checkGridTriggers(currentActive.id, decision.newPosition.x, decision.newPosition.y);
-            }
+            currentProps.checkGridTriggers(currentActive.id, decision.newPosition.x, decision.newPosition.y);
           }
 
-          if (!isMonsterDead && decision.attackExecuted && decision.attackResult) {
-            const dist = Math.max(
-              Math.abs(decision.newPosition.x - hero.x),
-              Math.abs(decision.newPosition.y - hero.y)
-            );
-            const isMonsterRanged = dist > 1.5;
-            currentProps.triggerAttackVisualEffect(
-              { x: decision.newPosition.x, y: decision.newPosition.y },
-              { x: hero.x, y: hero.y },
-              isMonsterRanged,
-              decision.attackResult.hit,
-              decision.attackResult.damage,
-              decision.attackResult.isCritical
-            );
-
-            currentProps.setLatestRoll({
-              id: Math.random().toString(),
-              attackerName: currentActive.name,
-              defenderName: hero.name,
-              logTitle: decision.attackResult.logTitle,
-              logDetail: decision.attackResult.logDetail,
-              isCritical: decision.attackResult.isCritical,
-              isFumble: decision.attackResult.isFumble,
-              damage: decision.attackResult.damage,
-              hit: decision.attackResult.hit
-            });
-          }
-
-          if (decision.logActionName) {
-            currentProps.addCombatLog(currentActive.name, decision.logActionName, decision.logDetail, 'attack');
-          }
+          processMonsterAttackAndVisuals({
+            decision,
+            monster: currentActive,
+            hero,
+            currentProps,
+          });
 
           const delayTime = decision.attackExecuted ? 600 : decision.logActionName ? 300 : 50;
           setTimeout(() => {
@@ -271,4 +173,3 @@ export function useMonsterTurnAI(props: UseMonsterTurnAIProps) {
     }
   }, [activeEntity?.id, activeEntityIndex, isBattleOver]);
 }
-

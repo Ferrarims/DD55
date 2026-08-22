@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Shield, Sword, Lock, User, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Shield, Sword, AlertCircle } from 'lucide-react';
 import { loginUser, registerNewUser } from '../../lib/api/authService';
 import { AppUser } from '../../types/auth';
+import { LoginHeader } from './login/LoginHeader';
+import { RegisterFields } from './login/RegisterFields';
+import { LoginFormFields } from './login/LoginFormFields';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: AppUser) => void;
@@ -87,30 +90,8 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md bg-slate-900/85 border border-amber-500/20 rounded-2xl p-6 md:p-8 shadow-2xl backdrop-blur-md relative z-10"
       >
-        {/* Header da Tela de Login */}
-        <div className="flex flex-col items-center mb-6">
-          <div className="relative group shrink-0 mb-4">
-            <div className="absolute -inset-1 bg-gradient-to-r from-red-600 via-amber-500 to-red-700 rounded-2xl blur-sm opacity-75 group-hover:opacity-100 transition duration-300"></div>
-            <div className="relative w-14 h-14 bg-slate-950 border border-amber-500/50 rounded-xl flex items-center justify-center p-2.5 shadow-xl">
-              <svg className="w-full h-full text-amber-500 drop-shadow-[0_2px_4px_rgba(239,68,68,0.4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" fill="rgba(185, 28, 28, 0.2)" stroke="#f59e0b" strokeWidth="1.5"/>
-                <path d="M12 2V12M12 22V12" stroke="#f59e0b" strokeWidth="1.2"/>
-                <path d="M3 7L12 12L21 7" stroke="#f59e0b" strokeWidth="1.2"/>
-                <path d="M3 17L12 12L21 17" stroke="#f59e0b" strokeWidth="1.2"/>
-                <circle cx="12" cy="12" r="2" fill="#ef4444"/>
-              </svg>
-            </div>
-          </div>
+        <LoginHeader isRegistering={isRegistering} />
 
-          <h2 className="text-2xl font-black text-amber-500 tracking-tight text-center" style={{ fontFamily: 'Georgia, serif' }}>
-            DUNGEONS &amp; DRAGONS
-          </h2>
-          <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">
-            {isRegistering ? 'Forje sua Conta de Jogador' : 'Faça Login na sua Campanha'}
-          </p>
-        </div>
-
-        {/* Notificações de Erro */}
         {error && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -122,128 +103,33 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           </motion.div>
         )}
 
-        {/* Formulário de Autenticação */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {isRegistering ? (
-            <>
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Nome Completo / Nome do Jogador
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Ex: Arthur Pendragon"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={isLoading}
-                    required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Nome de Usuário (@username)
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Ex: arthur_guerreiro"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    disabled={isLoading}
-                    required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  E-mail de Acesso
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="email"
-                    placeholder="seu.email@exemplo.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                    required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
-                  />
-                </div>
-              </div>
-            </>
+            <RegisterFields
+              name={name}
+              setName={setName}
+              username={username}
+              setUsername={setUsername}
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              confirmPassword={confirmPassword}
+              setConfirmPassword={setConfirmPassword}
+              showPassword={showPassword}
+              setShowPassword={setShowPassword}
+              isLoading={isLoading}
+            />
           ) : (
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                E-mail ou Usuário
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="Digite seu e-mail de acesso"
-                  value={emailOrUsername}
-                  onChange={(e) => setEmailOrUsername(e.target.value)}
-                  disabled={isLoading}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Senha {isRegistering && '(mínimo 8 caracteres)'}
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Digite sua senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                required
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {isRegistering && (
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Confirmar Senha
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Confirme sua senha"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={isLoading}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
-                />
-              </div>
-            </div>
+            <LoginFormFields
+              emailOrUsername={emailOrUsername}
+              setEmailOrUsername={setEmailOrUsername}
+              password={password}
+              setPassword={setPassword}
+              showPassword={showPassword}
+              setShowPassword={setShowPassword}
+              isLoading={isLoading}
+            />
           )}
 
           <button
@@ -267,7 +153,6 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           </button>
         </form>
 
-        {/* Alternar entre Login / Cadastro */}
         <div className="mt-5 text-center">
           <button
             type="button"

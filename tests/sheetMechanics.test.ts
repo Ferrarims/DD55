@@ -95,6 +95,33 @@ describe('ETAPA 3 — Isolamento e Cálculos Puros da Ficha', () => {
       expect(res.armor_class).toBe(16); // Sem bônus de escudo
       expect(res.twoHandedWeaponBlockedShield).toBe(true);
     });
+
+    it('deve calcular CA corretamente com equipmentSlots serializado em JSON string', () => {
+      const res = calculateAC({
+        charClass: 'Guerreiro',
+        stats: { dex: 17 }, // +3
+        equipmentSlots: JSON.stringify({
+          corpo_torso: 'Cota de Malha',
+          empunhadura_2: 'Escudo'
+        }) as any
+      });
+      expect(res.armor_class).toBe(18); // 16 + 2
+      expect(res.shieldActive).toBe(true);
+      expect(res.armorType).toBe('heavy');
+    });
+
+    it('deve calcular CA corretamente com inventário relacional do Supabase (items: { name }) e equip_slot', () => {
+      const res = calculateAC({
+        charClass: 'Guerreiro',
+        stats: { dex: 14 },
+        inventoryItems: [
+          { equip_slot: 'corpo_torso', items: { name: 'Cota de Malha' }, equipped: true } as any,
+          { equip_slot: 'empunhadura_2', items: { name: 'Escudo' }, equipped: true } as any
+        ]
+      });
+      expect(res.armor_class).toBe(18); // 16 + 2
+      expect(res.shieldActive).toBe(true);
+    });
   });
 
   describe('Cálculo de Pontos de Vida (PV) e Modificadores', () => {

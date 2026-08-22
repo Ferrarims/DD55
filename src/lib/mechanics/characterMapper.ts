@@ -187,6 +187,7 @@ export function mapDatabaseRowToPlayerStats(rawChar: any): PlayerStats {
     character_inventory: rawChar.character_inventory,
     character_spells: rawChar.character_spells,
     character_feats: rawChar.character_feats,
+    conditions,
   };
 }
 

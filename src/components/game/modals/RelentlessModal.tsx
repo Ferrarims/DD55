@@ -34,7 +34,7 @@ export const RelentlessModal: React.FC<RelentlessModalProps> = ({
               </div>
               <div>
                 <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-950 text-red-300 border border-red-500/40">
-                  Habilidade Racial de Orc (D&D 5.5e)
+                  Habilidade Racial de Orc
                 </span>
                 <h3 className="text-xl font-black text-red-400 mt-1">Resistência Implacável Ativada!</h3>
               </div>

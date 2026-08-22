@@ -24,7 +24,7 @@ export const FeatsHistorySection: React.FC<FeatsHistorySectionProps> = ({
           <div className="border-b border-slate-800 pb-2">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                <span>🎯</span> Talentos Escolhidos &amp; Bônus Ativos (D&amp;D 5.5e)
+                <span>🎯</span> Talentos Escolhidos &amp; Bônus Ativos
               </h3>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-amber-300 font-extrabold bg-amber-950/80 border border-amber-500/40 px-2 py-0.5 rounded">

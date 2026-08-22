@@ -42,7 +42,7 @@ export const SubclassModal: React.FC<SubclassModalProps> = ({
                 ESCOLHA A SUBCLASSE DE GUERREIRO (NÍVEL 3)
               </h2>
               <p className="text-xs text-slate-300">
-                Selecione a especialização marcial do Livro do Jogador D&amp;D 5.5e (2024 PHB).
+                Selecione a sua especialização marcial.
               </p>
             </div>
           </div>

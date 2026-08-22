@@ -42,16 +42,18 @@ export const TargetSelectionModal: React.FC<TargetSelectionModalProps> = ({
 }) => {
   const handleSelectTarget = (target: any) => {
     setShowTargetModal(false);
-    if (pendingAttackInfo?.type === 'attack') {
-      handleHeroAttack(pendingAttackInfo.overrideAtk, target);
-    } else if (pendingAttackInfo?.type === 'offhand') {
-      handleHeroOffHandAttack(pendingAttackInfo.overrideAtk, target);
-    } else if (pendingAttackInfo?.type === 'cleave') {
-      handleHeroCleaveAttack(pendingAttackInfo.overrideAtk, target);
-    } else if (pendingAttackInfo?.type === 'magic') {
+    const info = pendingAttackInfo;
+    setPendingAttackInfo(null);
+    if (!info || info.type === 'weapon' || info.type === 'attack') {
+      handleHeroAttack(info?.overrideAtk, target);
+    } else if (info.type === 'offhand') {
+      handleHeroOffHandAttack(info.overrideAtk, target);
+    } else if (info.type === 'cleave') {
+      handleHeroCleaveAttack(info.overrideAtk, target);
+    } else if (info.type === 'magic') {
       handleHeroMagicSpell(target);
-    } else if (pendingAttackInfo?.type === 'bomb') {
-      handleUseItem({ ...pendingAttackInfo.item, targetEntity: target });
+    } else if (info.type === 'bomb') {
+      handleUseItem({ ...info.item, targetEntity: target });
     }
   };
 
@@ -122,19 +124,7 @@ export const TargetSelectionModal: React.FC<TargetSelectionModalProps> = ({
             return (
               <button
                 key={`${m.id || 'target'}-${idx}`}
-                onClick={() => {
-                  if (pendingAttackInfo?.type === 'weapon') {
-                    handleHeroAttack(pendingAttackInfo.overrideAtk, m);
-                  } else if (pendingAttackInfo?.type === 'offhand') {
-                    handleHeroOffHandAttack(pendingAttackInfo.overrideAtk, m);
-                  } else if (pendingAttackInfo?.type === 'cleave') {
-                    handleHeroCleaveAttack(pendingAttackInfo.overrideAtk, m);
-                  } else if (pendingAttackInfo?.type === 'magic') {
-                    handleHeroMagicSpell(m);
-                  } else if (pendingAttackInfo?.type === 'bomb') {
-                    handleUseItem({ ...pendingAttackInfo.item, targetEntity: m });
-                  }
-                }}
+                onClick={() => handleSelectTarget(m)}
                 className="w-full p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 hover:bg-slate-800 hover:border-amber-500/60 transition flex items-center justify-between gap-3 group text-left shadow-md cursor-pointer"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">

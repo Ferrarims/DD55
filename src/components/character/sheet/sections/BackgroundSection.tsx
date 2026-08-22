@@ -23,7 +23,7 @@ export const BackgroundSection: React.FC<{
             <span>📜</span> Antecedente: {bgInfo?.name || bgName}
           </h3>
           <span className="text-[11px] font-medium bg-amber-950/60 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
-            Benefícios de Origem (2024 PHB)
+            Benefícios de Origem
           </span>
         </div>
         <p className="text-xs text-slate-400 mt-1">

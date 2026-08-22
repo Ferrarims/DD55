@@ -120,7 +120,7 @@ export const GoliathHitReactionModal: React.FC<GoliathHitReactionModalProps> = (
                   {isTargetAlreadyProne
                     ? 'Não disponível: O alvo já está caído.'
                     : isLargeOrSmaller 
-                    ? 'Derruba o alvo no chão, aplicando a condição Caído (Prone).' 
+                    ? 'Derruba o alvo no chão, aplicando a condição Caído.' 
                     : 'Não disponível: O alvo é muito grande para ser derrubado.'}
                 </span>
               </div>

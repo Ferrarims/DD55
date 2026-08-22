@@ -6,10 +6,9 @@ import {
   WorldSeed,
 } from './types';
 import { WorldChunkCache } from './chunkCache';
-import {
-  worldToChunk,
-  worldToLocal,
-} from './coordinates';
+import { worldToChunk } from './coordinates';
+import { getCellAtCoordinates, calculateMovementCost } from './controller/proceduralCellQuery';
+import { executeWorldMove } from './controller/proceduralMovementHandler';
 
 export interface ProceduralWorldControllerOptions {
   readonly worldSeed: WorldSeed;
@@ -59,99 +58,47 @@ export class ProceduralWorldController {
     this.activeChunks = this.loadActiveWindow(this.currentChunk);
   }
 
-  /**
-   * Retorna a seed do mundo configurada.
-   */
   public getWorldSeed(): WorldSeed {
     return this.worldSeed;
   }
 
-  /**
-   * Retorna a posição global atual do jogador.
-   */
   public getPosition(): WorldCoordinates {
     return { ...this.currentPosition };
   }
 
-  /**
-   * Retorna as coordenadas de chunk onde o jogador se encontra.
-   */
   public getCurrentChunk(): ChunkCoordinates {
     return { ...this.currentChunk };
   }
 
-  /**
-   * Retorna a instância do cache de chunks em memória.
-   */
   public getChunkCache(): WorldChunkCache {
     return this.chunkCache;
   }
 
-  /**
-   * Retorna a lista de chunks ativos na janela ao redor do jogador (por padrão, 3 × 3 = 9 chunks).
-   */
   public getActiveChunks(): readonly GeneratedChunk[] {
     return this.activeChunks;
   }
 
-  /**
-   * Retorna a célula procedural em que o jogador está posicionado.
-   */
   public getCurrentCell(): ChunkCell {
     return this.getCellAt(this.currentPosition.worldX, this.currentPosition.worldY);
   }
 
-  /**
-   * Consulta os dados de qualquer célula por coordenadas globais de mundo.
-   * Utiliza o cache de chunks para carregar o chunk necessário sob demanda.
-   */
   public getCellAt(worldX: number, worldY: number): ChunkCell {
-    const chunkCoord = worldToChunk({ worldX, worldY });
-    const localCoord = worldToLocal({ worldX, worldY });
-
-    const chunk = this.chunkCache.getOrGenerateChunk(
-      this.worldSeed,
-      chunkCoord.chunkX,
-      chunkCoord.chunkY
-    );
-
-    return chunk.cells[localCoord.localY][localCoord.localX];
+    return getCellAtCoordinates(this.chunkCache, this.worldSeed, worldX, worldY);
   }
 
-  /**
-   * Consulta os dados de célula a partir de um objeto WorldCoordinates.
-   */
   public getCellAtWorld(coords: WorldCoordinates): ChunkCell {
     return this.getCellAt(coords.worldX, coords.worldY);
   }
 
-  /**
-   * Verifica se a célula na coordenada de mundo especificada bloqueia movimento.
-   */
   public isMovementBlocked(worldX: number, worldY: number): boolean {
     const cell = this.getCellAt(worldX, worldY);
     return cell.blocksMovement;
   }
 
-  /**
-   * Calcula o custo de movimento para adentrar a célula na coordenada especificada.
-   * Retorna Infinity se bloqueada, 2 se terreno difícil e 1 se terreno normal.
-   */
   public getMovementCost(worldX: number, worldY: number): number {
-    const cell = this.getCellAt(worldX, worldY);
-    if (cell.blocksMovement) {
-      return Infinity;
-    }
-    if (cell.difficultTerrain) {
-      return 2;
-    }
-    return 1;
+    return calculateMovementCost(this.chunkCache, this.worldSeed, worldX, worldY);
   }
 
-  /**
-   * Move o jogador por um delta de uma célula (dx: -1..1, dy: -1..1).
-   * Valida colisão, terreno difícil e atualiza a janela ativa se houver transição de chunk.
-   */
   public moveBy(dx: number, dy: number): WorldMoveResult {
     if (dx === 0 && dy === 0) {
       const currentCell = this.getCurrentCell();
@@ -176,74 +123,27 @@ export class ProceduralWorldController {
     return this.moveTo(targetPos);
   }
 
-  /**
-   * Move o jogador para uma coordenada global adjacente.
-   * Se a célula de destino bloquear movimento, a posição não é alterada.
-   */
   public moveTo(targetPos: WorldCoordinates): WorldMoveResult {
-    const prevPos = this.getPosition();
-    const prevChunk = this.getCurrentChunk();
-    const targetCell = this.getCellAtWorld(targetPos);
+    const result = executeWorldMove({
+      chunkCache: this.chunkCache,
+      worldSeed: this.worldSeed,
+      currentPosition: this.currentPosition,
+      currentChunk: this.currentChunk,
+      targetPos,
+    });
 
-    if (prevPos.worldX === targetPos.worldX && prevPos.worldY === targetPos.worldY) {
-      return {
-        success: false,
-        reason: 'ALREADY_AT_POSITION',
-        previousPosition: prevPos,
-        newPosition: prevPos,
-        previousChunk: prevChunk,
-        newChunk: prevChunk,
-        chunkChanged: false,
-        movementCost: 0,
-        targetCell,
-      };
+    if (result.success) {
+      this.currentPosition = { ...result.newPosition };
+      this.currentChunk = { ...result.newChunk };
+
+      if (result.chunkChanged) {
+        this.activeChunks = this.loadActiveWindow(result.newChunk);
+      }
     }
 
-    if (targetCell.blocksMovement) {
-      return {
-        success: false,
-        reason: 'BLOCKED',
-        previousPosition: prevPos,
-        newPosition: prevPos,
-        previousChunk: prevChunk,
-        newChunk: prevChunk,
-        chunkChanged: false,
-        movementCost: Infinity,
-        targetCell,
-      };
-    }
-
-    const movementCost = targetCell.difficultTerrain ? 2 : 1;
-    const nextChunk = worldToChunk(targetPos);
-    const chunkChanged =
-      nextChunk.chunkX !== prevChunk.chunkX || nextChunk.chunkY !== prevChunk.chunkY;
-
-    this.currentPosition = {
-      worldX: targetPos.worldX,
-      worldY: targetPos.worldY,
-    };
-    this.currentChunk = nextChunk;
-
-    if (chunkChanged) {
-      this.activeChunks = this.loadActiveWindow(nextChunk);
-    }
-
-    return {
-      success: true,
-      previousPosition: prevPos,
-      newPosition: this.getPosition(),
-      previousChunk: prevChunk,
-      newChunk: nextChunk,
-      chunkChanged,
-      movementCost,
-      targetCell,
-    };
+    return result;
   }
 
-  /**
-   * Reposiciona o jogador diretamente em uma coordenada global (ex: teletransporte/respawn)
-   * e recarrega a janela ativa de chunks correspondente.
-   */
   public setPosition(pos: WorldCoordinates): void {
     const prevChunk = this.currentChunk;
     this.currentPosition = {
@@ -261,16 +161,10 @@ export class ProceduralWorldController {
     }
   }
 
-  /**
-   * Força a recarga da janela de chunks ativa ao redor da posição atual.
-   */
   public refreshActiveWindow(): void {
     this.activeChunks = this.loadActiveWindow(this.currentChunk);
   }
 
-  /**
-   * Carrega a janela de chunks ao redor de um chunk central a partir do cache.
-   */
   private loadActiveWindow(centerChunk: ChunkCoordinates): readonly GeneratedChunk[] {
     return this.chunkCache.getChunkWindow(
       this.worldSeed,

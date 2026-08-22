@@ -135,29 +135,29 @@ export function useSpellsAndMasteryActions(
           const dc = 8 + pb + Math.max(strMod, dexMod);
 
           if (conSave < dc) {
-            extraEffectLog = ` 💥 MAESTRIA DERRUBAR (TOPPLE)! ${targetEntity.name} falhou no teste de CON (Rolou ${conSave} vs CD ${dc}) e CAIU CAÍDO (Prone)!`;
+            extraEffectLog = ` 💥 MAESTRIA DERRUBAR! ${targetEntity.name} falhou no teste de CON (Rolou ${conSave} vs CD ${dc}) e CAIU CAÍDO!`;
           } else {
-            extraEffectLog = ` 🛡️ ${targetEntity.name} resistiu ao Topple (CON Save ${conSave} vs CD ${dc}).`;
+            extraEffectLog = ` 🛡️ ${targetEntity.name} resistiu ao Derrubar (Salvaguarda de CON ${conSave} vs CD ${dc}).`;
           }
         } else if (mLower.includes('push') || mLower.includes('empurrar')) {
-          extraEffectLog = ` 💥 MAESTRIA EMPURRAR (PUSH)! ${targetEntity.name} foi empurrado 3 metros (2 células) para trás!`;
-        } else if (mLower.includes('vex') || mLower.includes('vexar') || mLower.includes('provocar')) {
-          extraEffectLog = ` 🎯 MAESTRIA PROVOCAR (VEX)! Concede VANTAGEM na próxima jogada de ataque contra ${targetEntity.name}!`;
+          extraEffectLog = ` 💥 MAESTRIA EMPURRAR! ${targetEntity.name} foi empurrado 3 metros (2 células) para trás!`;
+        } else if (mLower.includes('vex') || mLower.includes('vexar') || mLower.includes('provocar') || mLower.includes('afligir')) {
+          extraEffectLog = ` 🎯 MAESTRIA AFLIGIR! Concede VANTAGEM na próxima jogada de ataque contra ${targetEntity.name}!`;
         } else if (mLower.includes('sap') || mLower.includes('enfraquecer')) {
-          extraEffectLog = ` 🛡️ MAESTRIA ENFRAQUECER (SAP)! Impõe DESVANTAGEM no próximo ataque de ${targetEntity.name}!`;
+          extraEffectLog = ` 🛡️ MAESTRIA ENFRAQUECER! Impõe DESVANTAGEM no próximo ataque de ${targetEntity.name}!`;
         } else if (mLower.includes('slow') || mLower.includes('lentidão') || mLower.includes('lentidao')) {
-          extraEffectLog = ` 🐢 MAESTRIA LENTIDÃO (SLOW)! Reduz o deslocamento de ${targetEntity.name} em 3 metros!`;
-        } else if (mLower.includes('cleave') || mLower.includes('fender') || mLower.includes('varrer')) {
+          extraEffectLog = ` 🐢 MAESTRIA LENTIDÃO! Reduz o deslocamento de ${targetEntity.name} em 3 metros!`;
+        } else if (mLower.includes('cleave') || mLower.includes('fender') || mLower.includes('varrer') || mLower.includes('trespassar')) {
           const secondMonster = aliveMonsters.find(m => m.id !== targetEntity.id && getDistanceBetweenEntities(hero, m, character?.race, activeLargeForm) <= 1);
           if (secondMonster) {
             const cleaveDmg = Math.floor(Math.random() * 6) + 1;
             processDamageAndCheckKill(secondMonster.id, cleaveDmg, hero.name, currentSelectedAttack?.damage_type || 'Cortante', 'hero');
-            extraEffectLog = ` 🪓 MAESTRIA VARRER (CLEAVE)! Golpe atingiu também ${secondMonster.name} causando +${cleaveDmg} de dano!`;
+            extraEffectLog = ` 🪓 MAESTRIA TRESPASSAR! Golpe atingiu também ${secondMonster.name} causando +${cleaveDmg} de dano!`;
           } else {
-            extraEffectLog = ` 🪓 MAESTRIA VARRER (CLEAVE)! Golpe de varredura executado com sucesso!`;
+            extraEffectLog = ` 🪓 MAESTRIA TRESPASSAR! Golpe de varredura executado com sucesso!`;
           }
-        } else if (mLower.includes('nick') || mLower.includes('corte rápido') || mLower.includes('golpe rápido')) {
-          extraEffectLog = ` ⚡ MAESTRIA CORTE RÁPIDO (NICK)! Ataque veloz realizado de forma fluida sem gastar sua Ação Bônus!`;
+        } else if (mLower.includes('nick') || mLower.includes('corte rápido') || mLower.includes('golpe rápido') || mLower.includes('ágil') || mLower.includes('agil')) {
+          extraEffectLog = ` ⚡ MAESTRIA ÁGIL! Ataque veloz realizado de forma fluida sem gastar sua Ação Bônus!`;
         } else {
           extraEffectLog = ` 🎯 MAESTRIA DE ARMA (${masteryName}) aplicada com sucesso!`;
         }

@@ -301,4 +301,80 @@ describe('ETAPA 4 — Estabilização do Motor de Combate', () => {
       expect(ordered.map(c => c.id)).toEqual(['2', '3', '1']);
     });
   });
+
+  describe('Sincronização de CA entre Ficha e Batalha', () => {
+    it('createHeroEntity deve usar armor_class da ficha do personagem (ex: CA 18)', async () => {
+      const { createHeroEntity } = await import('../src/components/game/core/mapInitialization');
+      const mockChar = {
+        name: 'Charles',
+        race: 'Humano',
+        level: 1,
+        armor_class: 18,
+        dexterity: 17,
+        constitution: 14
+      };
+      const entity = createHeroEntity(mockChar, { x: 5, y: 5 }, 34, 34, 0, 6);
+      expect(entity.armor_class).toBe(18);
+      expect(entity.ac).toBe(18);
+    });
+
+    it('executeAttack deve usar CA correta do defensor', async () => {
+      const { executeAttack } = await import('../src/game/combatEngine');
+      const attacker: CombatEntity = {
+        id: 'monster-1',
+        name: 'Svirfneblin #2',
+        type: 'monster',
+        x: 5,
+        y: 6,
+        maxHp: 20,
+        currentHp: 20,
+        tempHp: 0,
+        armor_class: 12,
+        speed: 6,
+        remainingMovement: 6,
+        initiative: 10,
+        icon: '👺',
+        color: '#ff0000',
+        attackBonus: 4,
+        damageDice: '1d8+2',
+        range: 1,
+        hasAction: true,
+        hasBonusAction: false,
+        hasReaction: false,
+        isDead: false,
+        conditions: []
+      };
+
+      const heroTarget: CombatEntity = {
+        id: 'hero',
+        name: 'Charles',
+        type: 'hero',
+        x: 5,
+        y: 5,
+        maxHp: 34,
+        currentHp: 34,
+        tempHp: 0,
+        armor_class: 18,
+        ac: 18,
+        speed: 6,
+        remainingMovement: 6,
+        initiative: 12,
+        icon: '🛡️',
+        color: '#0000ff',
+        attackBonus: 5,
+        damageDice: '1d8+3',
+        range: 1,
+        hasAction: true,
+        hasBonusAction: false,
+        hasReaction: false,
+        isDead: false,
+        conditions: []
+      };
+
+      // Ataque executado contra o herói com CA 18
+      const res = executeAttack(attacker, heroTarget, 'normal');
+      expect(res.logTitle).toMatch(/CA 18/);
+    });
+  });
 });
+

@@ -124,7 +124,12 @@ export const OverviewSection: React.FC<{
         <div className="bg-slate-900 border border-slate-700 px-3 py-2 rounded-lg">
           <div className="text-xs text-slate-400 uppercase font-bold">Percepção Passiva</div>
           <div className="text-xl font-extrabold text-amber-400">
-            {10 + getMod(character.wisdom || 10)}
+            {(() => {
+              const wisMod = getMod(character.wisdom || character.wis || 10);
+              const skills = character.skillProficiencies || character.skill_proficiencies || character.skills || [];
+              const hasPerception = skills.some((s: string) => String(s).toLowerCase().includes('percep'));
+              return 10 + wisMod + (hasPerception ? pb : 0);
+            })()}
           </div>
         </div>
       </div>

@@ -34,10 +34,10 @@ export const AcCalculatorModal: React.FC<AcCalculatorModalProps> = ({
         <div>
           <div className="flex items-center gap-2 text-amber-400 font-black text-lg">
             <span>🛡️</span>
-            <h3>Motor de Resolução de CA (D&D 2024 / 5.5e)</h3>
+            <h3>Motor de Resolução de CA</h3>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Auditoria oficial do pipeline de cálculo de Classe de Armadura baseado estritamente nas regras oficiais do D&D 2024.
+            Auditoria oficial do pipeline de cálculo de Classe de Armadura baseado estritamente nas regras do jogo.
           </p>
         </div>
 

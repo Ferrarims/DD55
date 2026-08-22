@@ -198,6 +198,9 @@ export interface CombatEntity {
   attackedWeaponNamesThisAction?: string[];
   usedCleaveThisTurn?: boolean;
   usedNickThisTurn?: boolean;
+  fightingStyle?: string;
+  fighting_style?: string;
+  isActionSurgeActive?: boolean;
 }
 
 export interface MonsterTemplate {
